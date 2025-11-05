@@ -1,0 +1,207 @@
+      socket.off('messageConfirmed', handleConfirmed);
+    };
+  }, [socket, fetchConversations]);
+
+  useEffect(() => {
+    if (!userId) return;
+
+    if (userId === 'ai') {
+      setChatMode('ai');
+      setSelectedUser(null);
+      return;
+    }
+
+    const partnerFromEmployees = employees?.find((emp) => emp.id === userId);
+    const conversationData = conversations.find((conv) => conv.partnerId === userId);
+
+    if (partnerFromEmployees || conversationData) {
+      setChatMode('human');
+      setSelectedUser({
+        id: userId,
+        name: partnerFromEmployees?.name || conversationData?.partnerName || 'Unknown member',
+        email: partnerFromEmployees?.email || '',
+        role: partnerFromEmployees?.role || '',
+        department: partnerFromEmployees?.department || '',
+        avatar: partnerFromEmployees?.avatar || conversationData?.partnerAvatar || null,
+      });
+    }
+  }, [userId, employees, conversations]);
+
+  useEffect(() => {
+    getAllUsers();
+  }, [getAllUsers]);
+
+  const renderUserAvatar = (avatar, size = 'w-12 h-12') =>
+    avatar ? (
+      <img
+        src={avatar}
+        alt="User avatar"
+        className={`${size} rounded-full object-cover border border-gray-200`}
+      />
+    ) : (
+      <CircleUserIcon className={`${size} text-gray-500`} />
+    );
+
+  return (
+    <div className='flex gap-4 h-full whitespace-nowrap'>
+      {/* Conversations List */}
+      <div className='w-1/3 space-y-4 overflow-y-auto'>
+        <div className='text-2xl rounded p-4 bg-gray-100 shadow'>
+          <div className='flex items-center justify-between'>
+            <span>Messages</span>
+            <div className='flex items-center gap-2'>
+              <Circle className={`w-3 h-3 ${isConnected ? 'text-green-500 fill-current' : 'text-red-500'}`} />
+              <span className='text-sm text-gray-600'>
+                {isConnected ? 'Connected' : 'Disconnected'}
+              </span>
+            </div>
+          </div>
+        </div>
+
+        {isLoading ? (
+          <div className='text-center py-8 text-gray-500'>
+            <div className='animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500 mx-auto mb-4'></div>
+            <p>Loading...</p>
+            <p className='text-xs mt-1'>
+              {employeesLoading ? 'Loading team members...' : 'Loading conversations...'}
+            </p>
+          </div>
+        ) : (
+          <>
+            {/* Recent Conversations */}
+            {conversations.length > 0 && conversationPartners.length > 0 && (
+              <div className='space-y-2'>
+                <h3 className='font-semibold text-gray-700 flex items-center gap-2'>
+                  <MessageCircle className='w-4 h-4' />
+                  Recent Conversations ({conversationPartners.length})
+                </h3>
+                {conversationPartners.map((partner) => {
+                  const isActive = selectedUser?.id === partner.id;
+                  const isPartnerOnline = isUserOnline(partner.id);
+
+                  return (
+                    <div
+                      key={partner.id}
+                      onClick={() => onSelectUser(partner)}
+                      className={`flex items-center gap-4 p-4 bg-white rounded shadow hover:bg-gray-50 cursor-pointer transition-colors ${isActive ? 'bg-blue-50 border-blue-200 border' : ''}`}
+                    >
+                      <div className='relative'>
+                        {renderUserAvatar(partner.avatar)}
+                        <Circle
+                          className={`absolute -bottom-1 -right-1 w-4 h-4 ${
+                            isPartnerOnline ? 'text-green-500 fill-current' : 'text-gray-400'
+                          }`}
+                        />
+                      </div>
+                      <div className='flex-1 min-w-0'>
+                        <span className='text-lg font-semibold truncate'>{partner.name}</span>
+                        <p
+                          className={`text-sm text-gray-600 truncate ${
+                            !partner.conversation.read && !partner.conversation.isMeSend
+                              ? 'font-bold'
+                              : ''
+                          }`}
+                        >
+                          {partner.conversation.lastMessage}
+                        </p>
+                        <p className='text-xs text-gray-400'>
+                          {partner.conversation.timestamp ? formatHour(partner.conversation.timestamp) : ''}
+                        </p>
+                      </div>
+                      {!partner.conversation.read && !partner.conversation.isMeSend && (
+                        <Circle className='w-4 h-4 shrink-0 text-blue-500 fill-current' />
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+
+            {/* Available Users for New Chats */}
+            <div className='space-y-2'>
+              <h3 className='font-semibold text-gray-700 flex items-center gap-2'>
+                <CircleUserIcon className='w-4 h-4' />
+                {conversations.length > 0 ? 'Start New Chat' : 'Team Members'} ({newChatUsers.length})
+              </h3>
+
+              {newChatUsers.length > 0 ? (
+                newChatUsers.map((person) => {
+                  const isActive = selectedUser?.id === person.id;
+                  const isOnline = person.id !== 'ai' && isUserOnline(person.id);
+
+                  return (
+                    <div
+                      key={person.id}
+                      onClick={() => onSelectUser(person)}
+                      className={`flex items-center gap-4 p-4 bg-white rounded shadow hover:bg-gray-50 cursor-pointer transition-colors ${isActive ? 'bg-blue-50 border-blue-200 border' : ''}`}
+                    >
+                      <div className='relative'>
+                        {person.id === 'ai' ? (
+                          <CircleUserIcon className='w-12 h-12 text-purple-400' />
+                        ) : (
+                          renderUserAvatar(person.avatar)
+                        )}
+                        <Circle
+                          className={`absolute -bottom-1 -right-1 w-4 h-4 ${
+                            person.id === 'ai'
+                              ? 'text-purple-500 fill-current'
+                              : isOnline
+                              ? 'text-green-500 fill-current'
+                              : 'text-gray-400'
+                          }`}
+                        />
+                      </div>
+                      <div className='flex-1 min-w-0'>
+                        <span className='text-lg font-semibold truncate'>{person.name}</span>
+                        <p className='text-sm text-gray-600 truncate'>{person.email}</p>
+                        {person.department && (
+                          <p className='text-xs text-gray-500 truncate'>{person.department || person.role}</p>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })
+              ) : (
+                <div className='text-center py-8 text-gray-500'>
+                  <MessageCircle className='w-12 h-12 text-gray-300 mx-auto mb-2' />
+                  <p>All conversations are shown above</p>
+                </div>
+              )}
+            </div>
+          </>
+        )}
+      </div>
+
+      {/* Chat Window */}
+      <div className='flex-1'>
+        {chatMode === 'ai' ? (
+          <AIChat />
+        ) : selectedUser ? (
+          <ChatWindow
+            selectedUser={selectedUser}
+            currentUser={user}
+            onNewMessage={fetchConversations}
+          />
+        ) : (
+          <div className='bg-gray-100 p-4 rounded shadow h-full flex items-center justify-center'>
+            <div className='text-center'>
+              <MessageCircle className='w-16 h-16 text-gray-400 mx-auto mb-4' />
+              <p className='text-gray-500 text-lg'>Select a team member to start chatting</p>
+              <p className='text-gray-400 text-sm mt-2'>
+                {isConnected ? 'You are connected and ready to chat' : 'Connecting...'}
+              </p>
+              {!isConnected && (
+                <div className='mt-4'>
+                  <div className='animate-spin rounded-full h-6 w-6 border-b-2 border-blue-500 mx-auto'></div>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+};
+
+export default MessagePage;
+

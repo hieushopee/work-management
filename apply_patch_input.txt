@@ -1,0 +1,91 @@
+*** Begin Patch
+*** Update File: frontend/src/features/chat/pages/MessagePage.jsx
+@@
+-  useEffect(() => {
+-    if (userId === 'ai') {
+-      setChatMode('ai');
+-      setSelectedUser(null);
+-      return;
+-    }
+-
+-    setChatMode('human');
+-
+-    if (!userId) {
+-      setSelectedUser(null);
+-      return;
+-    }
+-
+-    const candidate =
+-      conversationPartners.find((partner) => partner.id === userId) ||
+-      availableUsersWithAI.find((person) => person.id === userId);
+-
+-    if (candidate) {
+-      if (selectedUser?.id === candidate.id) return;
+-
+-      const normalized = {
+-        id: candidate.id,
+-        name: candidate.name || 'Untitled',
+-        email: candidate.email || '',
+-        role: candidate.role || '',
+-        department: candidate.department || '',
+-        avatar: candidate.avatar || null,
+-        conversationId: candidate.conversation?.conversationId || candidate.conversationId || null,
+-        members: candidate.members || candidate.conversation?.members || candidate.conversation?.groupMembers || [],
+-      };
+-      setSelectedUser(normalized);
+-      setConversations((prev) =>
+-        prev.map((conv) =>
+-          conv.partnerId === normalized.id ? { ...conv, read: true, unreadCount: 0 } : conv
+-        )
+-      );
+-    }
+-  }, [userId, conversationPartners, availableUsersWithAI, selectedUser?.id]);
++  useEffect(() => {
++    if (userId === 'ai') {
++      setChatMode('ai');
++      setSelectedUser(null);
++      return;
++    }
++
++    if (!userId) {
++      if (chatMode === 'ai') {
++        setChatMode('inbox');
++      }
++      setSelectedUser(null);
++      return;
++    }
++
++    const candidate =
++      conversationPartners.find((partner) => partner.id === userId) ||
++      availableUsersWithAI.find((person) => person.id === userId);
++
++    if (candidate) {
++      if (candidate.role === 'group' && chatMode !== 'group') {
++        setChatMode('group');
++      } else if (candidate.role !== 'group' && chatMode === 'group') {
++        setChatMode('inbox');
++      } else if (chatMode === 'ai') {
++        setChatMode('inbox');
++      }
++
++      if (selectedUser?.id === candidate.id) return;
++
++      const normalized = {
++        id: candidate.id,
++        name: candidate.name || 'Untitled',
++        email: candidate.email || '',
++        role: candidate.role || '',
++        department: candidate.department || '',
++        avatar: candidate.avatar || null,
++        conversationId: candidate.conversation?.conversationId || candidate.conversationId || null,
++        members: candidate.members || candidate.conversation?.members || candidate.conversation?.groupMembers || [],
++      };
++      setSelectedUser(normalized);
++      setConversations((prev) =>
++        prev.map((conv) =>
++          conv.partnerId === normalized.id ? { ...conv, read: true, unreadCount: 0 } : conv
++        )
++      );
++    }
++  }, [userId, chatMode, conversationPartners, availableUsersWithAI, selectedUser?.id]);
+*** End Patch
