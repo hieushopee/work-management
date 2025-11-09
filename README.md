@@ -1,4 +1,4 @@
-# 🚀 Work Management System
+# 🚀 Hệ Thống Quản Lý Công Việc Nội Bộ Doanh Nghiệp
 
 [![React](https://img.shields.io/badge/React-19.1.0-blue.svg)](https://reactjs.org/)
 [![Node.js](https://img.shields.io/badge/Node.js-22.14.0-green.svg)](https://nodejs.org/)
@@ -6,7 +6,7 @@
 [![Socket.io](https://img.shields.io/badge/Socket.io-4.8.1-black.svg)](https://socket.io/)
 [![License](https://img.shields.io/badge/License-ISC-blue.svg)](LICENSE)
 
-> A comprehensive full-stack work management system with AI integration, real-time chat, face recognition, and advanced task management features.
+> Hệ thống quản lý công việc nội bộ doanh nghiệp toàn diện tích hợp trí tuệ nhân tạo (AI), chat thời gian thực, nhận diện khuôn mặt, và các tính năng quản lý nhiệm vụ nâng cao. Giải pháp số hóa quy trình làm việc, tối ưu hóa hiệu suất và tăng cường sự hợp tác giữa các thành viên trong tổ chức.
 
 ![Work Management System Preview](https://via.placeholder.com/800x400/2563EB/FFFFFF?text=Work+Management+System+Preview)
 
