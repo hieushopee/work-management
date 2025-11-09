@@ -255,26 +255,34 @@ const SidebarCalendar = ({
               display: none !important;
             }
             .react-calendar__month-view__weekdays {
+              display: grid;
+              grid-template-columns: repeat(7, 38px);
+              width: 266px;
+              margin: 0 auto 0.35rem auto;
               text-align: center;
               text-transform: uppercase;
               font-size: 0.7rem;
               font-weight: 500;
               color: #6B7280;
-              margin-bottom: 0.35rem;
               letter-spacing: 0.02em;
             }
             .react-calendar__month-view__weekdays__weekday {
               padding: 0.35rem 0;
-              flex: 0 0 calc(100% / 7);
-              max-width: calc(100% / 7);
+              display: flex;
+              justify-content: center;
             }
             .react-calendar__month-view__days {
-              display: flex;
-              flex-wrap: wrap;
+              display: grid;
+              grid-template-columns: repeat(7, 38px);
+              width: 266px;
+              margin: 0 auto;
+              row-gap: 0.3rem;
             }
             .react-calendar__month-view__days__day {
-              flex: 0 0 calc(100% / 7);
-              max-width: calc(100% / 7);
+              width: 38px;
+              display: flex;
+              align-items: center;
+              justify-content: center;
             }
             .react-calendar__month-view__days__day--neighboringMonth,
             .react-calendar__month-view__days__day--neighboringMonth abbr {
@@ -287,6 +295,7 @@ const SidebarCalendar = ({
               font-size: 0.875rem;
               color: #374151;
               transition: all 0.2s;
+              width: 38px !important;
               height: 38px !important;
               display: flex;
               align-items: center;

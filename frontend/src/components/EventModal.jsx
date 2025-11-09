@@ -5,7 +5,6 @@ import RichTextEditor from "./RichTextEditor";
 import { startShift as startShiftApi, endShift as endShiftApi } from "../libs/axios";
 
 import { SquarePenIcon, Trash2Icon, X, Calendar, Clock, User, CheckCircle, Camera, Info } from "lucide-react";
-import EventReportNotes from "./EventReportNotes";
 
 const MODAL_WIDTH = 980;
 const MODAL_HEIGHT = 200;
@@ -311,7 +310,14 @@ export default function EventModal({
       "inline-flex items-center justify-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors bg-gray-200 text-gray-500 cursor-not-allowed";
   }
 
-  if (hasStartedShift && !hasEndedShift) {
+  if (editing) {
+    shiftActionLabel = "Save Event";
+    shiftActionDisabled = !editing;
+    shiftActionTitle = "Save changes";
+    shiftActionHandler = null;
+    shiftButtonClass =
+      "inline-flex items-center justify-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors bg-blue-600 text-white cursor-default";
+  } else if (hasStartedShift && !hasEndedShift) {
     shiftActionLabel = shiftLoading ? "Processing..." : "End";
     shiftActionDisabled = endButtonDisabled;
     shiftActionTitle = endButtonTitle;
@@ -578,26 +584,16 @@ export default function EventModal({
             />
 
             {/* Report Notes Section */}
-            {editing ? (
-              <RichTextEditor
-                id="reportNotes"
-                label="Report Notes"
-                labelClassName="text-xs font-bold text-gray-900 uppercase tracking-wide"
-                value={reportNotes}
-                onChange={setReportNotes}
-                placeholder="Add progress notes, blockers, or key updates..."
-                readOnly={false}
-                height={240}
-              />
-            ) : (
-              <EventReportNotes
-                reportNotes={reportNotes}
-                start={format(start, "PPPP p")}
-                end={format(end, "p")}
-                createdBy={currentUser?.name || currentUser?.email || "Unknown"}
-                createdAt={format(start, "PPPP")}
-              />
-            )}
+            <RichTextEditor
+              id="reportNotes"
+              label="Report Notes"
+              labelClassName="text-xs font-bold text-gray-900 uppercase tracking-wide"
+              value={reportNotes}
+              onChange={editing ? setReportNotes : () => {}}
+              placeholder="Add progress notes, blockers, or key updates..."
+              readOnly={!editing}
+              height={240}
+            />
           </div>
         </div>
 
@@ -621,24 +617,34 @@ export default function EventModal({
               </div>
             )}
             <div className="flex justify-end gap-2">
-              {event?.id && (
-                <button
-                  type="button"
-                  onClick={shiftActionHandler || undefined}
-                  disabled={shiftActionDisabled}
-                  title={shiftActionTitle}
-                  className={shiftButtonClass}
-                >
-                  {shiftActionLabel}
-                </button>
-              )}
-              {editing && (
-                <button
-                  onClick={handleSave}
-                  className="px-4 py-2 rounded-lg text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 transition-colors"
-                >
-                  Save Event
-                </button>
+              {editing ? (
+                <>
+                  <button
+                    type="button"
+                    onClick={() => setEditing(false)}
+                    className="px-4 py-2 rounded-lg text-sm font-medium border border-gray-300 text-gray-700 hover:bg-gray-50 transition-colors"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={handleSave}
+                    className="px-4 py-2 rounded-lg text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 transition-colors"
+                  >
+                    Save Event
+                  </button>
+                </>
+              ) : (
+                event?.id && (
+                  <button
+                    type="button"
+                    onClick={shiftActionHandler || undefined}
+                    disabled={shiftActionDisabled}
+                    title={shiftActionTitle}
+                    className={shiftButtonClass}
+                  >
+                    {shiftActionLabel}
+                  </button>
+                )
               )}
             </div>
           </div>

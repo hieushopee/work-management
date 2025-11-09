@@ -1,6 +1,11 @@
-import { LayoutDashboard, Users, MessageSquare, ClipboardList, Calendar } from 'lucide-react';
+import { LayoutDashboard, Users, MessageSquare, ClipboardList, Calendar, CheckSquare } from 'lucide-react';
 
 export const SIDEBAR_OWNER_ITEMS = [
+    {
+        name: 'Dashboard',
+        path: '/dashboard',
+        icon: <LayoutDashboard className="w-5 h-5" />
+    },
     {
         name: 'Manage Employees',
         path: '/',
@@ -9,7 +14,7 @@ export const SIDEBAR_OWNER_ITEMS = [
     {
         name: 'Manage Tasks',
         path: '/manage-task',
-        icon: <LayoutDashboard className="w-5 h-5" />
+        icon: <CheckSquare className="w-5 h-5" />
     },
     {
         name: 'Messages',
@@ -30,9 +35,14 @@ export const SIDEBAR_OWNER_ITEMS = [
 
 export const SIDEBAR_EMPLOYEE_ITEMS = [
     {
+        name: 'Dashboard',
+        path: '/dashboard',
+        icon: <LayoutDashboard className="w-5 h-5" />
+    },
+    {
         name: 'My Tasks',
         path: '/',
-        icon: <LayoutDashboard className="w-5 h-5" />
+        icon: <CheckSquare className="w-5 h-5" />
     },
     {
         name: 'Messages',

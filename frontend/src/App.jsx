@@ -15,6 +15,7 @@ import Layout from './pages/Layout';
 import FormPage from './pages/FormPage';
 import CalendarPage from "./pages/CalendarPage";
 import ReportPage from "./pages/ReportPage";
+import DashboardPage from "./pages/DashboardPage";
 
 function App() {
   const navigate = useNavigate()
@@ -43,6 +44,7 @@ useEffect(() => {
           <Route path="/verify" element={user ? <Navigate to="/" /> : <VerificationPage />} />
           <Route path='/' element={<Layout />}>
             <Route index element={user?.role === "owner" ? <ManageEmployeePage /> : <TaskPage />} />
+            <Route path="/dashboard" element={<DashboardPage />} />
             <Route path="/manage-task" element={user?.role === "owner" && <ManageTaskPage />} />
             <Route path="/message/:userId?" element={<MessagePage />} />
             <Route path="form" element={<FormPage />} />

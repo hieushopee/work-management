@@ -824,22 +824,46 @@ const WeeklySchedule = ({
                   <div
                     key={`wh-${id}`}
                     onClick={() => {
-                      // Fake report list: 1 report per day in period
-                      const days = [];
-                      let d = new Date(periodBoundaries.start);
-                      while (d <= periodBoundaries.end) {
-                        days.push(new Date(d));
-                        d.setDate(d.getDate() + 1);
-                      }
-                      setReportList(days.map((date, idx) => ({
-                        date: date.toISOString().slice(0, 10),
-                        title: format(date, "EEE, dd MMM"),
-                        reportNotes: emp.reportNotes || '',
-                        start: date,
-                        end: date,
-                        createdBy: displayName,
-                        createdAt: date,
-                      })));
+                      const memberId = String(id);
+                      const monthStart = new Date(selectedDate.getFullYear(), selectedDate.getMonth(), 1);
+                      monthStart.setHours(0, 0, 0, 0);
+                      const monthEnd = new Date(selectedDate.getFullYear(), selectedDate.getMonth() + 1, 0);
+                      monthEnd.setHours(23, 59, 59, 999);
+
+                      const memberEvents = events
+                        .filter((evt) => {
+                          if (!evt) return false;
+                          const eventStart =
+                            evt.start instanceof Date ? evt.start : new Date(evt.start);
+                          if (!eventStart || Number.isNaN(eventStart.getTime())) return false;
+                          if (eventStart < monthStart || eventStart > monthEnd) return false;
+
+                          const assigned = Array.isArray(evt.resourceId)
+                            ? evt.resourceId.map((value) => String(value))
+                            : Array.isArray(evt.assignedTo)
+                            ? evt.assignedTo.map((value) => String(value))
+                            : evt.resourceId != null
+                            ? [String(evt.resourceId)]
+                            : [];
+
+                          return assigned.includes(memberId);
+                        })
+                        .sort(
+                          (a, b) =>
+                            (a.start instanceof Date ? a.start.getTime() : new Date(a.start).getTime()) -
+                            (b.start instanceof Date ? b.start.getTime() : new Date(b.start).getTime())
+                        )
+                        .map((evt) => ({
+                          id: evt.id,
+                          title: evt.title || "(No title)",
+                          reportNotes: evt.reportNotes || "",
+                          start: evt.start,
+                          end: evt.end,
+                          createdBy: evt.createdBy || evt.createdById || displayName,
+                          createdAt: evt.createdAt || evt.start,
+                        }));
+
+                      setReportList(memberEvents);
                       setReportMember(displayName);
                       setShowReportModal(true);
                     }}
@@ -860,6 +884,7 @@ const WeeklySchedule = ({
         onClose={() => setShowReportModal(false)}
         reports={reportList}
         memberName={reportMember}
+        preferredDate={selectedDate}
       />
             </div>
           </div>
@@ -894,4 +919,3 @@ const WeeklySchedule = ({
 }
 
 export default WeeklySchedule
-

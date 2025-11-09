@@ -1,20 +1,18 @@
 import express from "express";
 import {
-  chatWithOpenRouter as chatWithGemini,
-  chatWithOllama,
+  chatWithOpenAI,
   getConversations,
   getConversation,
-  deleteConversation,
-  getOllamaModels,
+  renameConversation,
+  deleteConversation
 } from "../controllers/ai.controller.js";
 
 const router = express.Router();
 
-router.post("/chat", chatWithGemini);
-router.post("/chat-ollama", chatWithOllama);
+router.post("/chat", chatWithOpenAI);
 router.get("/conversations/:userId", getConversations);
 router.get("/conversation/:conversationId", getConversation);
+router.patch("/conversation/:conversationId", renameConversation);
 router.delete("/conversation/:conversationId", deleteConversation);
-router.get("/ollama/models", getOllamaModels);
 
 export default router;

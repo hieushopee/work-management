@@ -1,12 +1,46 @@
 
-import React, { useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import OverlayModal from "./OverlayModal";
-import EventReportNotes from "./EventReportNotes";
+import { FileText } from "lucide-react";
 
 // reports: [{ id, title, reportNotes, start, end, createdBy, createdAt }]
-export default function ReportNotesModal({ open, onClose, reports = [], memberName = "" }) {
+export default function ReportNotesModal({
+  open,
+  onClose,
+  reports = [],
+  memberName = "",
+  preferredDate = null,
+}) {
   const [selectedIdx, setSelectedIdx] = useState(0);
   const selectedReport = reports[selectedIdx] || {};
+  const hasReports = reports.length > 0;
+
+  const isSameDay = (a, b) => {
+    if (!a || !b) return false;
+    const d1 = a instanceof Date ? a : new Date(a);
+    const d2 = b instanceof Date ? b : new Date(b);
+    if (Number.isNaN(d1.getTime()) || Number.isNaN(d2.getTime())) return false;
+    return (
+      d1.getFullYear() === d2.getFullYear() &&
+      d1.getMonth() === d2.getMonth() &&
+      d1.getDate() === d2.getDate()
+    );
+  };
+
+  useEffect(() => {
+    if (!reports.length) {
+      setSelectedIdx(0);
+      return;
+    }
+    if (preferredDate) {
+      const matchIdx = reports.findIndex((r) => isSameDay(r.start, preferredDate));
+      if (matchIdx >= 0) {
+        setSelectedIdx(matchIdx);
+        return;
+      }
+    }
+    setSelectedIdx(0);
+  }, [reports, preferredDate]);
 
   // Helper to format event time (e.g. 02:00 - 12:00)
   const formatTime = (start, end) => {
@@ -33,40 +67,108 @@ export default function ReportNotesModal({ open, onClose, reports = [], memberNa
     }
   };
 
+  const formatFullStamp = (start, end) => {
+    const dateLabel = formatDate(start);
+    const timeLabel = formatTime(start, end);
+    if (!dateLabel && !timeLabel) return "";
+    if (!dateLabel) return timeLabel;
+    if (!timeLabel) return dateLabel;
+    return `${dateLabel} | ${timeLabel}`;
+  };
+
+  const periodLabel = useMemo(() => {
+    const baseDate = selectedReport?.start || reports[0]?.start;
+    if (!baseDate) return "";
+    const d = new Date(baseDate);
+    if (!d || Number.isNaN(d.getTime())) return "";
+    return `Work report for ${d.toLocaleDateString(undefined, { month: "short", year: "numeric" })}`;
+  }, [selectedReport?.start, reports]);
+
   return (
-    <OverlayModal open={open} onClose={onClose} width={900}>
-      <div className="flex h-[600px] max-h-[80vh] w-[900px] max-w-full">
-        {/* Sidebar: List of events */}
-        <div className="w-64 bg-gray-50 border-r border-gray-200 p-4 overflow-y-auto rounded-l-xl">
-          <div className="font-semibold text-gray-700 mb-4">{memberName}</div>
-          <ul className="space-y-2">
-            {reports.map((r, idx) => (
-              <li key={r.id || idx}>
-                <button
-                  className={`w-full text-left px-3 py-2 rounded-lg transition-all font-medium text-sm ${
-                    idx === selectedIdx
-                      ? "bg-blue-100 text-blue-700 shadow"
-                      : "hover:bg-gray-100 text-gray-700"
-                  }`}
-                  onClick={() => setSelectedIdx(idx)}
-                >
-                  <div className="flex flex-col gap-0.5">
-                    <span className="font-semibold text-base truncate">{r.title || "(No title)"}</span>
-                    <span className="text-xs text-gray-500">{formatDate(r.start)}</span>
-                    <span className="text-xs text-gray-500">{formatTime(r.start, r.end)}</span>
-                  </div>
-                </button>
-              </li>
-            ))}
-          </ul>
-        </div>
-        {/* Main content: Report notes for selected event */}
-        <div className="flex-1 p-6 overflow-y-auto">
-          <div className="mb-4">
-            <div className="text-2xl font-bold text-gray-900 mb-1">{selectedReport.title}</div>
-            <div className="text-sm text-gray-500 mb-2">{formatDate(selectedReport.start)} | {formatTime(selectedReport.start, selectedReport.end)}</div>
+    <OverlayModal open={open} onClose={onClose} width={960}>
+      <div className="flex h-[640px] max-h-[85vh] w-[960px] max-w-full flex-col overflow-hidden rounded-3xl">
+        <header className="flex items-center gap-4 border-b border-gray-200 bg-white px-6 py-4">
+          <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-blue-600 text-white shadow-lg shadow-blue-500/30">
+            <FileText className="h-6 w-6" />
           </div>
-          <EventReportNotes {...selectedReport} />
+          <div>
+            <h2 className="text-xl font-semibold text-gray-900">{memberName || "Report notes"}</h2>
+            <p className="text-sm text-gray-500">{periodLabel || "Work reports"}</p>
+          </div>
+        </header>
+
+        <div className="flex flex-1 overflow-hidden bg-gray-50">
+          {/* Sidebar */}
+          <aside className="w-72 border-r border-gray-200 bg-white/80 p-4 overflow-y-auto">
+            {hasReports ? (
+              <ul className="space-y-2">
+                {reports.map((r, idx) => {
+                  const isActive = idx === selectedIdx;
+                  return (
+                    <li key={r.id || idx}>
+                      <button
+                        type="button"
+                        onClick={() => setSelectedIdx(idx)}
+                        className={`w-full rounded-2xl border px-4 py-3 text-left transition ${
+                          isActive
+                            ? "border-blue-200 bg-blue-50 text-blue-700 shadow-inner"
+                            : "border-transparent bg-white text-gray-700 hover:border-blue-100 hover:bg-blue-50/40"
+                        }`}
+                      >
+                        <div className="text-xs font-semibold text-gray-500">
+                          {formatFullStamp(r.start, r.end)}
+                        </div>
+                        <div className="text-sm font-semibold text-gray-900 truncate">
+                          {r.title || "(No title)"}
+                        </div>
+                      </button>
+                    </li>
+                  );
+                })}
+              </ul>
+            ) : (
+              <div className="text-sm text-gray-500 px-1 py-6 text-center">
+                No reports available for this member.
+              </div>
+            )}
+          </aside>
+
+          {/* Detail panel */}
+          <section className="flex-1 overflow-y-auto p-6">
+            {hasReports ? (
+              <div className="rounded-3xl bg-white p-6 shadow-sm border border-gray-200">
+                <div className="mb-5">
+                  <h3 className="text-2xl font-semibold text-gray-900">
+                    {selectedReport.title || "(No title)"}
+                  </h3>
+                  <p className="text-sm text-gray-500 mt-1">
+                    {formatFullStamp(selectedReport.start, selectedReport.end)}
+                  </p>
+                </div>
+
+                <div className="rounded-2xl border border-gray-100 bg-gray-50/80 p-5">
+                  <div className="mb-3 flex items-center gap-2 text-sm font-semibold text-gray-700">
+                    <FileText className="h-4 w-4 text-blue-600" />
+                    Report Notes
+                  </div>
+                  <div className="min-h-[200px] rounded-xl bg-white/80 p-4 text-sm leading-relaxed text-gray-700 border border-gray-100">
+                    {selectedReport.reportNotes ? (
+                      <div
+                        className="prose prose-sm max-w-none"
+                        dangerouslySetInnerHTML={{ __html: selectedReport.reportNotes }}
+                      />
+                    ) : (
+                      <p className="italic text-gray-400">No report notes provided for this event.</p>
+                    )}
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <div className="flex h-full items-center justify-center rounded-3xl border border-dashed border-gray-200 bg-white text-sm text-gray-500">
+                Select a report from the list to view its notes.
+              </div>
+            )}
+          </section>
         </div>
       </div>
     </OverlayModal>

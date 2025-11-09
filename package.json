@@ -26,6 +26,7 @@
     "multer": "^2.0.2",
     "node-fetch": "^3.3.2",
     "nodemailer": "^7.0.5",
+    "openai": "^6.8.1",
     "react-calendar": "^6.0.0",
     "socket.io": "^4.8.1"
   },

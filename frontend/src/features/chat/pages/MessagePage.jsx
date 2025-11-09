@@ -5,6 +5,7 @@ import {
   Circle,
   CircleUserIcon,
   MessageCircle,
+  MoreHorizontal,
   Search,
   UserPlus,
   Sparkles,
@@ -33,6 +34,10 @@ const MessagePage = () => {
   const [isGroupModalOpen, setIsGroupModalOpen] = useState(false);
   const [groupMembersModalOpen, setGroupMembersModalOpen] = useState(false);
   const [selectedGroupForMembers, setSelectedGroupForMembers] = useState(null);
+  const [aiConversations, setAiConversations] = useState([]);
+  const [aiConversationsLoading, setAiConversationsLoading] = useState(false);
+  const [activeAiMenu, setActiveAiMenu] = useState(null);
+  const [editingAiConversation, setEditingAiConversation] = useState(null);
 
   const { employees, getAllUsers } = useEmployeeStore();
   const { user } = useUserStore();
@@ -79,6 +84,27 @@ const MessagePage = () => {
     [user?.id]
   );
 
+  const fetchAiConversations = useCallback(async () => {
+    if (!user?.id) {
+      setAiConversations([]);
+      return;
+    }
+    
+    setAiConversationsLoading(true);
+    try {
+      const res = await axios.get(`/ai/conversations/${user.id}`);
+      const validConversations = (res.data || []).filter(conv => 
+        (conv._id || conv.id) && (conv._id || conv.id) !== 'undefined' && (conv._id || conv.id) !== 'null'
+      );
+      setAiConversations(validConversations);
+    } catch (err) {
+      console.error("Failed to fetch AI conversations:", err);
+      setAiConversations([]);
+    } finally {
+      setAiConversationsLoading(false);
+    }
+  }, [user?.id]);
+
   const markMessagesAsRead = useCallback(async () => {
     if (!user?.id || !selectedUser?.id) return;
     if (selectedUser?.role === 'group') return;
@@ -108,7 +134,17 @@ const MessagePage = () => {
   const handleSelectUser = useCallback(
     (target) => {
       if (!target?.id) return;
-      navigate(`/message/${target.id}`);
+      if (target.id.startsWith('ai-')) {
+        // AI conversation selected
+        const conversationId = target.conversation?.conversationId;
+        if (conversationId) {
+          navigate(`/message/ai?conversationId=${conversationId}`);
+        } else {
+          navigate('/message/ai');
+        }
+      } else {
+        navigate(`/message/${target.id}`);
+      }
     },
     [navigate]
   );
@@ -282,13 +318,30 @@ const MessagePage = () => {
       });
     }
     if (chatMode === 'ai') {
-      return [];
+      // Return AI conversations as partners
+      return aiConversations.map((conv) => ({
+        id: `ai-${conv._id || conv.id}`,
+        name: conv.title || 'New Conversation',
+        email: '',
+        role: 'ai',
+        department: '',
+        avatar: null,
+        members: [],
+        conversation: {
+          conversationId: conv._id || conv.id,
+          timestamp: conv.updatedAt,
+          previewText: conv.messages?.[conv.messages.length - 1]?.content?.substring(0, 50) || 'Start chatting',
+          read: true,
+          isMeSend: false,
+        },
+        preview: conv.messages?.[conv.messages.length - 1]?.content?.substring(0, 50) || 'Start chatting',
+      }));
     }
     // Inbox mode: only show personal conversations (no AI, no groups)
     return conversationPartners.filter(
       (partner) => partner.role !== 'group' && partner.id !== 'ai' && partner.role !== 'ai'
     );
-  }, [conversationPartners, chatMode, user?.id, user?.teamNames]);
+  }, [conversationPartners, chatMode, user?.id, user?.teamNames, aiConversations]);
 
   const hasSearchTerm = searchTerm.trim().length > 0;
 
@@ -328,6 +381,26 @@ const MessagePage = () => {
       fetchConversations(user.id);
     }
   }, [user?.id, fetchConversations]);
+
+  useEffect(() => {
+    if (chatMode === 'ai' && user?.id) {
+      fetchAiConversations();
+    }
+  }, [chatMode, user?.id, fetchAiConversations]);
+
+  // Listen for AI conversation updates
+  useEffect(() => {
+    if (chatMode !== 'ai') return;
+    const handleAiConversationUpdate = () => {
+      fetchAiConversations();
+    };
+    window.addEventListener('aiConversationCreated', handleAiConversationUpdate);
+    window.addEventListener('aiConversationDeleted', handleAiConversationUpdate);
+    return () => {
+      window.removeEventListener('aiConversationCreated', handleAiConversationUpdate);
+      window.removeEventListener('aiConversationDeleted', handleAiConversationUpdate);
+    };
+  }, [chatMode, fetchAiConversations]);
 
   useEffect(() => {
     getAllUsers();
@@ -472,6 +545,53 @@ const MessagePage = () => {
     );
   }
 
+  useEffect(() => {
+    const handleClick = () => setActiveAiMenu(null);
+    const handleKey = (event) => {
+      if (event.key === 'Escape') {
+        setActiveAiMenu(null);
+        setEditingAiConversation(null);
+      }
+    };
+    document.addEventListener('click', handleClick);
+    document.addEventListener('keydown', handleKey);
+    return () => {
+      document.removeEventListener('click', handleClick);
+      document.removeEventListener('keydown', handleKey);
+    };
+  }, []);
+
+  const handleRenameAiConversation = useCallback(
+    async (conversationId, name) => {
+      if (!conversationId || !name?.trim()) {
+        setEditingAiConversation(null);
+        return;
+      }
+      try {
+        await axios.patch(`/ai/conversation/${conversationId}`, { title: name.trim() });
+        await fetchAiConversations();
+      } catch (error) {
+        console.error('Failed to rename AI conversation', error);
+      } finally {
+        setEditingAiConversation(null);
+      }
+    },
+    [fetchAiConversations]
+  );
+
+  const handleDeleteAiConversation = useCallback(
+    async (conversationId) => {
+      if (!conversationId) return;
+      try {
+        await axios.delete(`/ai/conversation/${conversationId}`);
+        await fetchAiConversations();
+      } catch (error) {
+        console.error('Failed to delete AI conversation', error);
+      }
+    },
+    [fetchAiConversations]
+  );
+
   return (
     <div className='h-full w-full overflow-hidden bg-slate-50'>
       <div className='mx-auto flex h-full max-w-[1400px] gap-6 px-6 py-6'>
@@ -540,14 +660,16 @@ const MessagePage = () => {
               <h3 className='text-sm font-semibold text-slate-700'>Conversations</h3>
               <p className='text-xs text-slate-500'>Keep in touch with your teammates</p>
             </div>
-            <button
-              type='button'
-              onClick={() => setIsGroupModalOpen(true)}
-              className='inline-flex h-9 w-9 items-center justify-center rounded-full border border-blue-200 bg-blue-50 text-blue-600 transition hover:bg-blue-100'
-              title='Create group chat'
-            >
-              <UserPlus className='h-4 w-4' />
-            </button>
+            {chatMode !== 'ai' && (
+              <button
+                type='button'
+                onClick={() => setIsGroupModalOpen(true)}
+                className='inline-flex h-9 w-9 items-center justify-center rounded-full border border-blue-200 bg-blue-50 text-blue-600 transition hover:bg-blue-100'
+                title='Create group chat'
+              >
+                <UserPlus className='h-4 w-4' />
+              </button>
+            )}
           </div>
 
           <div className='flex-1 space-y-6 overflow-y-auto pr-2'>
@@ -560,6 +682,119 @@ const MessagePage = () => {
                 filteredConversationPartners.map((partner) => {
                   const isActive = selectedUser?.id === partner.id;
                   const conversation = partner.conversation;
+                  const isAiConversation = partner.role === 'ai' || partner.id === 'ai';
+
+                  if (isAiConversation) {
+                    const hasUnread =
+                      !conversation?.read && !conversation?.isMeSend && conversation?.unreadCount > 0;
+                    const isEditing = editingAiConversation?.id === partner.id;
+                    const editingValue = editingAiConversation?.value ?? '';
+                    const conversationId = partner.conversation?.conversationId || partner.id?.replace(/^ai-/, '');
+                    const handleAiKeyDown = (event) => {
+                      if (isEditing) return;
+                      if (event.key === 'Enter' || event.key === ' ') {
+                        event.preventDefault();
+                        handleSelectUser(partner);
+                      }
+                    };
+                    return (
+                      <div
+                        key={partner.id}
+                        onClick={() => {
+                          if (isEditing) return;
+                          handleSelectUser(partner);
+                        }}
+                        onKeyDown={handleAiKeyDown}
+                        role='button'
+                        tabIndex={0}
+                        className={`w-full rounded-2xl border px-4 py-3 text-left transition ${
+                          isActive
+                            ? 'border-slate-300 bg-slate-50 shadow-inner'
+                            : 'border-slate-100 bg-white hover:border-slate-200 hover:bg-slate-50/60'
+                        }`}
+                      >
+                        <div className='flex items-center justify-between gap-3'>
+                          {isEditing ? (
+                            <input
+                              autoFocus
+                              className='w-full rounded-md border border-slate-300 px-2 py-1 text-sm font-semibold text-slate-900 focus:border-slate-500 focus:outline-none focus:ring-2 focus:ring-slate-200'
+                              value={editingValue}
+                              onChange={(event) =>
+                                setEditingAiConversation((prev) =>
+                                  prev?.id === partner.id ? { ...prev, value: event.target.value } : prev
+                                )
+                              }
+                              onBlur={() => handleRenameAiConversation(conversationId, editingValue)}
+                              onKeyDown={(event) => {
+                                if (event.key === 'Enter') {
+                                  event.preventDefault();
+                                  handleRenameAiConversation(conversationId, editingValue);
+                                } else if (event.key === 'Escape') {
+                                  event.preventDefault();
+                                  setEditingAiConversation(null);
+                                }
+                              }}
+                            />
+                          ) : (
+                            <span className='truncate text-sm font-semibold text-slate-900'>
+                              {partner.name}
+                            </span>
+                          )}
+                          <div className='flex items-center gap-2'>
+                            {hasUnread && (
+                              <span className='inline-flex min-w-[1.5rem] items-center justify-center rounded-full bg-slate-700 px-2 py-0.5 text-[10px] font-semibold text-white'>
+                                {conversation.unreadCount}
+                              </span>
+                            )}
+                            {!isEditing && (
+                              <div className='relative'>
+                                <button
+                                  type='button'
+                                  onClick={(event) => {
+                                    event.stopPropagation();
+                                    setActiveAiMenu((prev) => (prev === partner.id ? null : partner.id));
+                                  }}
+                                  className='inline-flex h-7 w-7 items-center justify-center rounded-full text-slate-400 transition hover:bg-slate-100 hover:text-slate-600 focus:outline-none focus:ring-2 focus:ring-slate-200'
+                                >
+                                  <MoreHorizontal className='h-4 w-4' />
+                                </button>
+                                {activeAiMenu === partner.id && (
+                                  <div className='absolute right-0 top-8 z-20 w-32 rounded-xl border border-slate-100 bg-white py-1.5 text-sm shadow-lg'>
+                                    <button
+                                      type='button'
+                                      className='block w-full px-3 py-1.5 text-left text-slate-700 hover:bg-slate-100'
+                                      onClick={(event) => {
+                                        event.stopPropagation();
+                                        setEditingAiConversation({
+                                          id: partner.id,
+                                          value: partner.name || '',
+                                        });
+                                        setActiveAiMenu(null);
+                                      }}
+                                    >
+                                      Edit
+                                    </button>
+                                    <button
+                                      type='button'
+                                      className='block w-full px-3 py-1.5 text-left text-rose-600 hover:bg-rose-50'
+                                      onClick={(event) => {
+                                        event.stopPropagation();
+                                        setActiveAiMenu(null);
+                                        handleDeleteAiConversation(conversationId);
+                                      }}
+                                    >
+                                      Delete
+                                    </button>
+                                  </div>
+                                )}
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  }
+
                   const isPartnerOnline =
                     partner.role === 'group'
                       ? isGroupOnline(partner.members)
@@ -580,7 +815,7 @@ const MessagePage = () => {
                         {renderUserAvatar(partner, 'w-12 h-12')}
                         <div className='min-w-0 flex-1'>
                           <div className='flex items-center justify-between gap-2'>
-                            <span className={`truncate text-sm font-semibold text-slate-900 ${partner.id === 'ai' ? 'text-purple-600' : ''}`}>
+                            <span className='truncate text-sm font-semibold text-slate-900'>
                               {partner.name}
                             </span>
                             <span className='text-xs text-slate-400'>
@@ -614,6 +849,8 @@ const MessagePage = () => {
                 <div className='rounded-2xl border border-dashed border-slate-200 bg-white/70 p-6 text-center text-sm text-slate-500'>
                   {chatMode === 'group' 
                     ? 'No team conversations yet. Create a group to get started.' 
+                    : chatMode === 'ai'
+                    ? 'Start chatting with AI. Your conversation history will appear here.'
                     : 'Start chatting by selecting a teammate below.'}
                 </div>
               )}
@@ -741,5 +978,3 @@ const MessagePage = () => {
 };
 
 export default MessagePage;
-
-

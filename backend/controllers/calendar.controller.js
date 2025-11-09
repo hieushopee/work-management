@@ -40,6 +40,8 @@ const serializeEvent = (event) => {
     title: json.title,
     start: json.startDate,
     end: json.endDate,
+    createdAt: json.createdAt,
+    updatedAt: json.updatedAt,
     assignedTo: json.assignedTo,
     createdById: json.createdById,
     createdByName: json.createdByName,
