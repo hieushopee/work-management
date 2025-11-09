@@ -297,6 +297,7 @@ const SidebarCalendar = ({
               transition: all 0.2s;
               width: 38px !important;
               height: 38px !important;
+              flex: none !important;
               display: flex;
               align-items: center;
               justify-content: center;
