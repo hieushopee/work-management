@@ -10,8 +10,8 @@
 
 ![Work Management System Preview](https://via.placeholder.com/800x400/2563EB/FFFFFF?text=Work+Management+System+Preview)
 
-**👨‍💻 Developer:** [Hieu Tran](mailto:hieudz6222@gmail.com)  
-**🌐 Live Demo:** [http://localhost:3000](http://localhost:3000)
+**👨‍💻 Developer:** [Hieushopee](mailto:hieutran6222@gmail.com)  
+**🌐 Live Demo:** I don't have the official link yet.
 
 ## ✨ Features
 
@@ -207,7 +207,7 @@ This project is licensed under the ISC License - see the [LICENSE](LICENSE) file
 
 ## 📞 Support
 
-For support, email hieudz6222@gmail.com or join our Discord community.
+For support, email hieutran6222@gmail.com or join our Discord community.
 
 ---
 
