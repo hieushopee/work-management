@@ -7,6 +7,17 @@ import { buildConversationId, normalizeId, toObjectId } from '../utils/identifie
 
 const { Types } = mongoose;
 
+const resolveWorkspaceId = async (userId) => {
+  try {
+    if (!userId) return null;
+    const user = await User.findById(userId).select('workspace');
+    return user?.workspace?._id?.toString?.() || user?.workspace?.toString?.() || null;
+  } catch (error) {
+    console.error('Failed to resolve workspace for user', userId, error);
+    return null;
+  }
+};
+
 const ensureParticipantDetail = (conversation, userId, profile, fallbackName = '') => {
   if (!conversation) return;
   const normalizedId = normalizeId(userId);
@@ -144,6 +155,8 @@ export const createSocketServer = (httpServer) => {
       methods: ['GET', 'POST'],
       credentials: true,
     },
+    // Allow larger payloads for image/file messages (default is 1MB)
+    maxHttpBufferSize: 10 * 1024 * 1024, // 10MB
   });
 
   const connectedUsers = new Map();
@@ -239,6 +252,12 @@ export const createSocketServer = (httpServer) => {
           ? messageData.groupMemberIds.map((id) => normalizeId(id)).filter(Boolean)
           : [];
 
+        // Resolve workspace (prefer sender, fall back to receiver for direct chat)
+        const senderWorkspace = await resolveWorkspaceId(senderId);
+        const receiverWorkspace =
+          !isGroup && providedReceiverId ? await resolveWorkspaceId(providedReceiverId) : null;
+        const resolvedWorkspace = senderWorkspace || receiverWorkspace || null;
+
         let conversationId = providedConversationId;
         let receiverObjectId = null;
         let receiverProfile = null;
@@ -269,7 +288,10 @@ export const createSocketServer = (httpServer) => {
             participantStates: [],
             messages: [],
             lastMessageAt: timestamp,
+            workspace: resolvedWorkspace ? toObjectId(resolvedWorkspace) ?? resolvedWorkspace : undefined,
           });
+        } else if (!conversation.workspace && resolvedWorkspace) {
+          conversation.workspace = toObjectId(resolvedWorkspace) ?? resolvedWorkspace;
         }
 
         const ensureParticipants = async (participants) => {

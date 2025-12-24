@@ -6,7 +6,7 @@ export const useEmployeeStore = create((set) => ({
     employees: null,
     loading: false,
     actionLoading: false,
-    createEmployee: async ({ name, email, phoneNumber, role, department, teams }) => {
+    createEmployee: async ({ name, email, phoneNumber, role, department, teams, password }) => {
         set({ actionLoading: true });
 
         try {
@@ -16,7 +16,8 @@ export const useEmployeeStore = create((set) => ({
                 phoneNumber,
                 role,
                 department,
-                teams
+                teams,
+                password // Admin can set password when creating account
             });
 
             if (res.data.success) {
@@ -27,7 +28,13 @@ export const useEmployeeStore = create((set) => ({
         } catch (error) {
             set({ actionLoading: false });
             console.log(error);
-            toast.error(error.response.data?.error || "An error occurred");
+            const errorMsg = error.response?.data?.error || "An error occurred";
+            const details = error.response?.data?.details;
+            if (details && Array.isArray(details)) {
+                toast.error(`${errorMsg}: ${details.join(', ')}`);
+            } else {
+                toast.error(errorMsg);
+            }
         }
     },
     getAllEmployees: async () => {
@@ -53,6 +60,16 @@ export const useEmployeeStore = create((set) => ({
             toast.error(error.response.data?.error || "An error occurred");
         }
     },
+    getAllUsersForMessaging: async () => {
+        set({ loading: true });
+        try {
+            const res = await axios.get('/employees/all-for-messaging');
+            set({ employees: res.data.users, loading: false });
+        } catch (error) {
+            set({ loading: false });
+            toast.error(error.response.data?.error || "An error occurred");
+        }
+    },
     getEmployee: async (id) => {
         set({ loading: true });
 
@@ -65,7 +82,7 @@ export const useEmployeeStore = create((set) => ({
             toast.error(error.response.data?.error || "An error occurred");
         }
     },
-    updateEmployee: async ({ id, email, phoneNumber, name, role, department, teams }) => {
+    updateEmployee: async ({ id, email, phoneNumber, name, role, department, teams, password }) => {
         set({ actionLoading: true });
 
         try {
@@ -75,7 +92,8 @@ export const useEmployeeStore = create((set) => ({
                 name,
                 role,
                 department,
-                teams
+                teams,
+                password // Admin can set password when updating employee
             });
 
             if (res.data.success && res.data.employee) {
@@ -113,6 +131,50 @@ export const useEmployeeStore = create((set) => ({
         } catch (error) {
             set({ actionLoading: false });
             toast.error(error.response.data?.error || "An error occurred");
+        }
+    },
+
+    // Admin: Reset employee password to default
+    resetEmployeePassword: async (employeeId) => {
+        set({ actionLoading: true });
+        try {
+            const res = await axios.post(`/employees/${employeeId}/reset-password`);
+            if (res.data.success) {
+                toast.success(res.data.message || "Password reset successfully");
+                return res.data;
+            }
+            return { success: false };
+        } catch (error) {
+            set({ actionLoading: false });
+            toast.error(error.response?.data?.error || "An error occurred");
+            return { success: false };
+        } finally {
+            set({ actionLoading: false });
+        }
+    },
+
+    // Admin: Toggle lock/unlock employee account
+    toggleEmployeeLock: async (employeeId) => {
+        set({ actionLoading: true });
+        try {
+            const res = await axios.post(`/employees/${employeeId}/toggle-lock`);
+            if (res.data.success) {
+                toast.success(res.data.message || "Account status updated successfully");
+                // Update local state
+                set((state) => ({
+                    employees: state.employees.map(emp => 
+                        emp.id === employeeId ? { ...emp, isLocked: res.data.employee.isLocked } : emp
+                    )
+                }));
+                return res.data;
+            }
+            return { success: false };
+        } catch (error) {
+            set({ actionLoading: false });
+            toast.error(error.response?.data?.error || "An error occurred");
+            return { success: false };
+        } finally {
+            set({ actionLoading: false });
         }
     },
 }));

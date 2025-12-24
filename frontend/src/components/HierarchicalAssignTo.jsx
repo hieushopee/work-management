@@ -531,7 +531,7 @@ const HierarchicalAssignTo = ({
         className={`w-full px-3 py-3 border-2 rounded-xl transition-all duration-200 cursor-pointer ${
           error
             ? 'border-red-300 focus:ring-red-500 focus:border-red-500 bg-red-50'
-            : 'border-gray-200 focus:ring-blue-500 focus:border-blue-500 hover:border-blue-300 bg-blue-50/30'
+            : 'border-border-light focus:ring-blue-500 focus:border-blue-500 hover:border-blue-300 bg-blue-50/30'
         }`}
         onClick={() => setIsOpen(!isOpen)}
         role="button"
@@ -560,7 +560,7 @@ const HierarchicalAssignTo = ({
                   </span>
                 ))}
                 {displayInfo.extra > 0 && (
-                  <span className="inline-flex items-center gap-1 rounded-full bg-gray-100 px-2.5 py-1 text-xs font-semibold text-gray-600">
+                  <span className="inline-flex items-center gap-1 rounded-full bg-bg-hover px-2.5 py-1 text-xs font-semibold text-text-secondary">
                     +{displayInfo.extra}
                   </span>
                 )}
@@ -579,17 +579,17 @@ const HierarchicalAssignTo = ({
 
       {/* Dropdown */}
       {isOpen && (
-        <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-200 rounded-xl shadow-lg z-50 max-h-96 overflow-hidden">
+        <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-border-light rounded-xl shadow-lg z-50 max-h-96 overflow-hidden">
           {/* Search Bar */}
-          <div className="p-3 border-b border-gray-200">
+          <div className="p-3 border-b border-border-light">
             <div className="relative">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-text-muted" />
               <input
                 type="text"
                 id="search-assignments"
                 name="search-assignments"
                 placeholder="Search teams and employees..."
-                className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                className="w-full pl-10 pr-3 py-2 border border-border-light rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 onClick={(e) => e.stopPropagation()}
@@ -602,10 +602,10 @@ const HierarchicalAssignTo = ({
           {/* Content */}
           <div className="flex max-h-80">
             {/* Left Column - Teams */}
-            <div className="flex-1 border-r border-gray-200">
+            <div className="flex-1 border-r border-border-light">
               <div className="p-2">
                 <div className="flex items-center justify-between mb-2">
-                  <h4 className="text-xs font-medium text-gray-500 uppercase tracking-wide">Teams</h4>
+                  <h4 className="text-xs font-medium text-text-secondary uppercase tracking-wide">Teams</h4>
                   <button
                     onClick={handleDeselectAll}
                     className="text-xs text-green-600 hover:text-green-700"
@@ -636,14 +636,14 @@ const HierarchicalAssignTo = ({
                             checked={teamId ? isTeamSelected(teamId) : false}
                             onChange={() => handleTeamToggle(team)}
                             onClick={(e) => e.stopPropagation()}
-                            className="w-4 h-4 text-green-600 border-gray-300 rounded focus:ring-green-500"
+                            className="w-4 h-4 text-green-600 border-border-light rounded focus:ring-green-500"
                             aria-label={`Select team ${team.name}`}
                           />
                         ) : (
                           <span className="w-4 h-4" aria-hidden="true" />
                         )}
-                        <span className="text-sm text-gray-700 flex-1">{team.name}</span>
-                        <span className="text-xs text-gray-500 bg-gray-100 px-2 py-0.5 rounded-full">
+                        <span className="text-sm text-text-main flex-1">{team.name}</span>
+                        <span className="text-xs text-text-secondary bg-bg-hover px-2 py-0.5 rounded-full">
                           {Array.isArray(team.members) ? team.members.length : 0}
                         </span>
                       </div>
@@ -657,7 +657,7 @@ const HierarchicalAssignTo = ({
             <div className="flex-1">
               <div className="p-2">
                 <div className="flex items-center justify-between mb-2">
-                  <h4 className="text-xs font-medium text-gray-500 uppercase tracking-wide">
+                  <h4 className="text-xs font-medium text-text-secondary uppercase tracking-wide">
                     {employeesToShow.length > 0 ? 'Employees' : 'Select a team'}
                   </h4>
                   {employeesToShow.length > 0 && (
@@ -676,7 +676,7 @@ const HierarchicalAssignTo = ({
                       return (
                         <div
                           key={employeeId || `employee-${index}`}
-                          className={`flex items-center gap-2 p-2 rounded-lg cursor-pointer hover:bg-gray-50 ${
+                          className={`flex items-center gap-2 p-2 rounded-lg cursor-pointer hover:bg-bg-secondary ${
                             employeeId && isEmployeeSelected(employeeId) ? 'bg-green-50' : ''
                           }`}
                           onClick={() => handleEmployeeToggle(employee)}
@@ -688,12 +688,12 @@ const HierarchicalAssignTo = ({
                             checked={employeeId ? isEmployeeSelected(employeeId) : false}
                             onChange={() => handleEmployeeToggle(employee)}
                             onClick={(e) => e.stopPropagation()}
-                            className="w-4 h-4 text-green-600 border-gray-300 rounded focus:ring-green-500"
+                            className="w-4 h-4 text-green-600 border-border-light rounded focus:ring-green-500"
                             aria-label={`Select employee ${employee.name}`}
                           />
-                          <User className="w-4 h-4 text-gray-400" />
-                          <span className="text-sm text-gray-700 flex-1">{employee.name}</span>
-                          <span className="text-xs text-gray-500">{employee.role}</span>
+                          <User className="w-4 h-4 text-text-muted" />
+                          <span className="text-sm text-text-main flex-1">{employee.name}</span>
+                          <span className="text-xs text-text-secondary">{employee.role}</span>
                         </div>
                       );
                     })

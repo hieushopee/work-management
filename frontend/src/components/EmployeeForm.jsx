@@ -1,20 +1,26 @@
 import React, { useState, useEffect } from 'react';
-import { DEPARTMENTS } from '../constants/departments';
 import { ROLES } from '../constants/roles';
 import { X, User, Mail, Phone, Building, Briefcase, Upload, CheckCircle, AlertCircle } from 'lucide-react';
 import MultiSelectDropdown from './MultiSelectDropdown';
+import useDepartmentStore from '../stores/useDepartmentStore';
+import { isAdmin, isManager } from '../utils/roleUtils';
 
 const EmployeeForm = ({ type, employee, onSubmit, isLoading, setIsOpen, currentUser, teams = [] }) => {
+    const { departments, getAllDepartments } = useDepartmentStore();
     const [employeeData, setEmployeeData] = useState({
         name: '',
         email: '',
         phoneNumber: '',
         department: '',
-        role: 'employee',
+        role: 'staff',
         teams: []
     });
 
     const [errors, setErrors] = useState({});
+
+    useEffect(() => {
+        getAllDepartments();
+    }, [getAllDepartments]);
 
     useEffect(() => {
         if (type === 'edit' && employee) {
@@ -23,7 +29,7 @@ const EmployeeForm = ({ type, employee, onSubmit, isLoading, setIsOpen, currentU
                 email: employee.email || '',
                 phoneNumber: employee.phoneNumber || '',
                 department: employee.department || '',
-                role: employee.role || 'employee',
+                role: employee.role || 'staff',
                 teams: employee.teamNames || []
             });
         } else if (type === 'create') {
@@ -32,7 +38,7 @@ const EmployeeForm = ({ type, employee, onSubmit, isLoading, setIsOpen, currentU
                 email: '',
                 phoneNumber: '',
                 department: '',
-                role: 'employee',
+                role: 'staff',
                 teams: []
             });
         }
@@ -98,6 +104,9 @@ const EmployeeForm = ({ type, employee, onSubmit, isLoading, setIsOpen, currentU
         setErrors(prev => ({ ...prev, [field]: error }));
     };
 
+    const isManagerLocked = isManager(currentUser) && !isAdmin(currentUser);
+    const roleLabel = (value) => ROLES.find((role) => role.value === value)?.label || value;
+
     return (
         <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
             <div className="bg-white p-8 rounded-3xl shadow-2xl w-full max-w-3xl">
@@ -151,7 +160,7 @@ const EmployeeForm = ({ type, employee, onSubmit, isLoading, setIsOpen, currentU
                                                 className={`w-full pl-10 pr-10 py-3 border-2 rounded-xl transition-all duration-200 ${
                                                     errors.name
                                                         ? 'border-red-300 focus:outline-none focus:ring-red-500 bg-red-50'
-                                                        : 'border-gray-200 focus:outline-none focus:ring-blue-500 hover:border-blue-300 bg-blue-50/30'
+                                                        : 'border-border-light focus:outline-none focus:ring-blue-500 hover:border-blue-300 bg-blue-50/30'
                                                 }`}
                                                 value={employeeData.name}
                                                 onChange={(e) => handleChange('name', e.target.value)}
@@ -190,7 +199,7 @@ const EmployeeForm = ({ type, employee, onSubmit, isLoading, setIsOpen, currentU
                                                 className={`w-full pl-10 pr-10 py-3 border-2 rounded-xl transition-all duration-200 ${
                                                     errors.email
                                                         ? 'border-red-300 focus:outline-none focus:ring-red-500 bg-red-50'
-                                                        : 'border-gray-200 focus:outline-none focus:ring-blue-500 hover:border-blue-300 bg-blue-50/30'
+                                                        : 'border-border-light focus:outline-none focus:ring-blue-500 hover:border-blue-300 bg-blue-50/30'
                                                 }`}
                                                 value={employeeData.email}
                                                 onChange={(e) => handleChange('email', e.target.value)}
@@ -229,7 +238,7 @@ const EmployeeForm = ({ type, employee, onSubmit, isLoading, setIsOpen, currentU
                                                 className={`w-full pl-10 pr-10 py-3 border-2 rounded-xl transition-all duration-200 ${
                                                     errors.phoneNumber
                                                         ? 'border-red-300 focus:outline-none focus:ring-red-500 bg-red-50'
-                                                        : 'border-gray-200 focus:outline-none focus:ring-blue-500 hover:border-blue-300 bg-blue-50/30'
+                                                        : 'border-border-light focus:outline-none focus:ring-blue-500 hover:border-blue-300 bg-blue-50/30'
                                                 }`}
                                                 value={employeeData.phoneNumber}
                                                 onChange={(e) => handleChange('phoneNumber', e.target.value)}
@@ -281,17 +290,32 @@ const EmployeeForm = ({ type, employee, onSubmit, isLoading, setIsOpen, currentU
                                                 className={`w-full pl-10 pr-10 py-3 border-2 rounded-xl transition-all duration-200 appearance-none ${
                                                     errors.department
                                                         ? 'border-red-300 focus:outline-none focus:ring-red-500 bg-red-50'
-                                                        : 'border-gray-200 focus:outline-none focus:ring-blue-500 hover:border-blue-300 bg-blue-50/30'
+                                                        : 'border-border-light focus:outline-none focus:ring-blue-500 hover:border-blue-300 bg-blue-50/30'
                                                 }`}
                                                 value={employeeData.department}
                                                 onChange={(e) => handleChange('department', e.target.value)}
                                                 onBlur={() => handleBlur('department')}
                                                 required
+                                                disabled={isManagerLocked}
                                             >
                                                 <option value="">Select Department</option>
-                                                {DEPARTMENTS.map((department) => (
-                                                    <option key={department.value} value={department.value}>{department.label}</option>
-                                                ))}
+                                                {isAdmin(currentUser)
+                                                  ? (departments || []).map((department) => (
+                                                      <option key={department._id || department.id || department.name} value={department.name}>
+                                                          {department.name}
+                                                      </option>
+                                                    ))
+                                                  : isManagerLocked
+                                                  ? [
+                                                      <option key={employeeData.department || 'locked-dept'} value={employeeData.department}>
+                                                        {employeeData.department || 'Current department'}
+                                                      </option>,
+                                                    ]
+                                                  : (departments || []).map((department) => (
+                                                      <option key={department._id || department.id || department.name} value={department.name}>
+                                                          {department.name}
+                                                      </option>
+                                                    ))}
                                             </select>
                                             <span className="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none">
                                                 {errors.department ? (
@@ -323,16 +347,27 @@ const EmployeeForm = ({ type, employee, onSubmit, isLoading, setIsOpen, currentU
                                                 className={`w-full pl-10 pr-10 py-3 border-2 rounded-xl transition-all duration-200 appearance-none ${
                                                     errors.role
                                                         ? 'border-red-300 focus:outline-none focus:ring-red-500 bg-red-50'
-                                                        : 'border-gray-200 focus:outline-none focus:ring-blue-500 hover:border-blue-300 bg-blue-50/30'
+                                                        : 'border-border-light focus:outline-none focus:ring-blue-500 hover:border-blue-300 bg-blue-50/30'
                                                 }`}
                                                 value={employeeData.role}
                                                 onChange={(e) => handleChange('role', e.target.value)}
                                                 onBlur={() => handleBlur('role')}
                                                 required
+                                                disabled={isManagerLocked}
                                             >
-                                                {ROLES.map((role) => (
-                                                    <option key={role.value} value={role.value}>{role.label}</option>
-                                                ))}
+                                                {isAdmin(currentUser)
+                                                  ? ROLES.map((role) => (
+                                                      <option key={role.value} value={role.value}>{role.label}</option>
+                                                    ))
+                                                  : isManagerLocked
+                                                  ? [
+                                                      <option key={employeeData.role || 'locked-role'} value={employeeData.role}>
+                                                        {roleLabel(employeeData.role || currentUser?.role || 'manager')}
+                                                      </option>,
+                                                    ]
+                                                  : ROLES.map((role) => (
+                                                      <option key={role.value} value={role.value}>{role.label}</option>
+                                                    ))}
                                             </select>
                                             <span className="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none">
                                                 {errors.role ? (
@@ -365,7 +400,7 @@ const EmployeeForm = ({ type, employee, onSubmit, isLoading, setIsOpen, currentU
                     </div>
 
                     <div className="flex flex-col sm:flex-row justify-between items-center pt-8 border-t border-slate-200">
-                        {type === 'edit' && currentUser?.role === 'owner' && (
+                        {type === 'edit' && (currentUser?.role === 'admin' || currentUser?.role === 'manager') && (
                             <label className="w-full sm:w-auto text-center bg-slate-100 text-slate-600 px-6 py-3 rounded-xl cursor-pointer hover:bg-slate-200 transition-all duration-200 flex items-center justify-center gap-2 font-medium">
                                 <Upload className="w-5 h-5"/>
                                 <span>Upload Face Data</span>

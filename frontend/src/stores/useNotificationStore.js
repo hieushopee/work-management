@@ -92,7 +92,7 @@ export const useNotificationStore = create((set) => ({
           return createdAt && isAfter(createdAt, recentThreshold);
         })
         .forEach((task) => {
-          const isOwner = role === 'owner';
+          const isOwner = role === 'admin' || role === 'manager';
           const taskRoute = isOwner ? '/manage-task' : '/';
           notifications.push({
             id: `task-${task.id}`,

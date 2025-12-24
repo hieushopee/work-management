@@ -114,6 +114,11 @@ const calendarEventSchema = new Schema(
       type: String,
       default: null,
     },
+    workspace: {
+      type: Schema.Types.ObjectId,
+      ref: 'Workspace',
+      default: null,
+    },
     attendance: {
       type: [attendanceSchema],
       default: [],

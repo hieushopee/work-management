@@ -10,17 +10,26 @@ export const generateTokens = (res, userId) => {
 		expiresIn: '7d',
 	});
 
-	res.cookie('accessToken', accessToken, {
+	const cookieOptions = {
 		httpOnly: true, // prevent XSS attacks, cross site scripting attack
 		secure: NODE_ENV === 'production',
-		sameSite: 'strict', // more permissive for development
+		sameSite: NODE_ENV === 'production' ? 'strict' : 'lax', // lax for development to allow navigation
+		path: '/', // Ensure cookies are available for all paths
+	};
+	
+	res.cookie('accessToken', accessToken, {
+		...cookieOptions,
 		maxAge: 15 * 60 * 1000, // 15 minutes
 	});
 	res.cookie('refreshToken', refreshToken, {
-		httpOnly: true, // prevent XSS attacks, cross site scripting attack
-		secure: NODE_ENV === 'production',
-		sameSite: 'strict', // more permissive for development
+		...cookieOptions,
 		maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
+	});
+
+	console.log('✅ Cookies set for user:', userId, {
+		hasAccessToken: !!accessToken,
+		hasRefreshToken: !!refreshToken,
+		env: NODE_ENV,
 	});
 
 	return { accessToken, refreshToken };

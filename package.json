@@ -6,7 +6,9 @@
   "scripts": {
     "dev": "nodemon ./backend/server.js",
     "start": "node ./backend/server.js",
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "fix-workspace": "node ./backend/scripts/fixUserWorkspace.js",
+    "check-user": "node ./backend/scripts/checkUser.js"
   },
   "keywords": [],
   "author": "",
@@ -14,6 +16,7 @@
   "dependencies": {
     "@google/generative-ai": "^0.24.1",
     "@vitejs/plugin-react": "^4.7.0",
+    "bcryptjs": "^3.0.3",
     "cookie-parser": "^1.4.7",
     "cors": "^2.8.5",
     "date-fns": "^4.1.0",
@@ -24,11 +27,11 @@
     "jsonwebtoken": "^9.0.2",
     "mongoose": "^8.18.2",
     "multer": "^2.0.2",
-    "node-fetch": "^3.3.2",
     "nodemailer": "^7.0.5",
     "openai": "^6.8.1",
     "react-calendar": "^6.0.0",
-    "socket.io": "^4.8.1"
+    "socket.io": "^4.8.1",
+    "xlsx": "^0.18.5"
   },
   "devDependencies": {
     "nodemon": "^3.1.10"

@@ -1,8 +1,8 @@
-// backend/routes/calendar.routes.js
 import express from 'express';
 import multer from 'multer';
 import fs from 'fs';
 import path from 'path';
+import { protectRoute } from '../middlewares/auth.middleware.js';
 import {
   getEvents,
   createEvent,
@@ -38,22 +38,22 @@ const upload = multer({
 });
 
 // Lấy danh sách sự kiện
-router.get('/', getEvents);
+router.get('/', protectRoute, getEvents);
 
 // Tạo mới sự kiện
-router.post('/', upload.array('reportFiles', 10), createEvent);
+router.post('/', protectRoute, upload.array('reportFiles', 10), createEvent);
 
 // Cập nhật sự kiện
-router.put('/:id', upload.array('reportFiles', 10), updateEvent);
+router.put('/:id', protectRoute, upload.array('reportFiles', 10), updateEvent);
 
 // Xoá sự kiện
-router.delete('/:id', deleteEvent);
+router.delete('/:id', protectRoute, deleteEvent);
 
 // ✅ Điểm danh (attendance) -> dùng POST
-router.post('/attendance/:id', markAttendance);
+router.post('/attendance/:id', protectRoute, markAttendance);
 
 // Shift tracking
-router.post('/:id/shift/start', startShift);
-router.post('/:id/shift/end', endShift);
+router.post('/:id/shift/start', protectRoute, startShift);
+router.post('/:id/shift/end', protectRoute, endShift);
 
 export default router;

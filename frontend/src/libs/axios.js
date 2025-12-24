@@ -1,22 +1,46 @@
 import axios from "axios";
 
-const getDevelopmentBaseUrl = () => {
-  const explicitUrl = import.meta.env.VITE_API_URL;
-  if (explicitUrl) return explicitUrl;
-
-  if (typeof window !== "undefined") {
-    const host = window.location.hostname ?? "localhost";
-    const port = import.meta.env.VITE_API_PORT ?? "5000";
-    return `http://${host}:${port}/api`;
+const serializeParams = (params) => {
+  const searchParams = new URLSearchParams();
+  if (!params) {
+    return searchParams.toString();
   }
 
-  return "http://localhost:5000/api";
+  const appendValue = (key, value) => {
+    if (value === undefined || value === null) return;
+    if (Array.isArray(value)) {
+      value.forEach((item) => appendValue(key, item));
+      return;
+    }
+    const normalized = value instanceof Date ? value.toISOString() : String(value);
+    searchParams.append(key, normalized);
+  };
+
+  Object.entries(params).forEach(([key, value]) => appendValue(key, value));
+  return searchParams.toString();
 };
 
+// In development, use relative path to leverage Vite proxy
+// This ensures cookies work correctly across localhost:3000 (frontend) and localhost:5000 (backend)
 const axiosInstance = axios.create({
-  baseURL: import.meta.env.MODE === "development" ? getDevelopmentBaseUrl() : "/api",
+  baseURL: "/api", // Always use relative path to go through Vite proxy in dev
   withCredentials: true,
+  paramsSerializer: serializeParams,
 });
+
+// Suppress 401 errors for auth endpoints (expected when user is not logged in)
+axiosInstance.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    // Suppress console errors for 401 on auth/profile endpoint
+    if (error.config?.url?.includes('/auth/profile') && error.response?.status === 401) {
+      // Don't log this error - it's expected when user is not logged in
+      return Promise.reject(error);
+    }
+    // For other errors, let them through normally
+    return Promise.reject(error);
+  }
+);
 
 export default axiosInstance;
 

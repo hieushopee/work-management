@@ -9,23 +9,23 @@ import {
   Users,
   Clock,
   X,
+  RefreshCw,
 } from 'lucide-react';
 import axios from '../libs/axios';
 import { useTaskStore } from '../stores/useTaskStore';
 import useUserStore from '../stores/useUserStore';
 import { format, formatDistanceToNow, isSameDay, startOfMonth, endOfMonth, subDays } from 'date-fns';
-
-const cardBase =
-  'rounded-3xl border border-slate-100 bg-white/90 shadow-sm px-5 py-4 flex flex-col gap-1 transition hover:shadow-md';
+import { hasOwnerPermissions } from '../utils/roleUtils';
+import { fetchLogs } from '../api/attendance';
 
 const badgeStyles = {
-  Task: 'bg-blue-50 text-blue-600',
-  Attendance: 'bg-emerald-50 text-emerald-600',
-  Leaderboard: 'bg-amber-50 text-amber-600',
-  Message: 'bg-indigo-50 text-indigo-600',
-  Member: 'bg-pink-50 text-pink-600',
-  Form: 'bg-cyan-50 text-cyan-600',
-  Calendar: 'bg-purple-50 text-purple-600',
+  Task: 'bg-blue-50 text-blue-700 border border-blue-200',
+  Attendance: 'bg-emerald-50 text-emerald-700 border border-emerald-200',
+  Leaderboard: 'bg-primary-light text-primary border border-primary',
+  Message: 'bg-primary-50 text-primary border border-primary-200',
+  Member: 'bg-pink-50 text-pink-700 border border-pink-200',
+  Form: 'bg-cyan-50 text-cyan-700 border border-cyan-200',
+  Calendar: 'bg-purple-50 text-purple-700 border border-purple-200',
 };
 
 const DashboardPage = () => {
@@ -50,7 +50,7 @@ const DashboardPage = () => {
   useEffect(() => {
     if (!user?.id) return;
     const fetchTasks = async () => {
-      if (user.role === 'owner') {
+      if (hasOwnerPermissions(user)) {
         await getAllTasks();
       } else {
         await getTasksByUserId(user.id);
@@ -59,44 +59,43 @@ const DashboardPage = () => {
     fetchTasks();
   }, [user?.id, user?.role, getAllTasks, getTasksByUserId, refreshTick]);
 
-  const computeAttendanceAndRanking = useCallback((events, employeeList) => {
+  const computeAttendanceAndRanking = useCallback((attendanceLogs, employeeList) => {
     const today = new Date();
     const attendanceSet = new Set();
     const hoursMap = new Map();
 
-    events.forEach((event) => {
-      const startDate = event?.start ? new Date(event.start) : null;
-      if (startDate && !Number.isNaN(startDate.getTime()) && isSameDay(startDate, today)) {
-        (Array.isArray(event.attendance) ? event.attendance : []).forEach((entry) => {
-          if (entry?.success && entry?.userId) {
-            attendanceSet.add(String(entry.userId));
-          }
-        });
+    // Process attendance logs from Attendance module
+    (Array.isArray(attendanceLogs) ? attendanceLogs : []).forEach((log) => {
+      const userId = log?.user?._id || log?.user?.id || log?.user || log?.userId;
+        if (!userId) return;
+
+      // Count today's attendance
+      const checkinTime = log?.checkin?.time ? new Date(log.checkin.time) : null;
+      if (checkinTime && !Number.isNaN(checkinTime.getTime()) && isSameDay(checkinTime, today)) {
+        attendanceSet.add(String(userId));
       }
 
-      (Array.isArray(event.shiftLogs) ? event.shiftLogs : []).forEach((log) => {
-        const userId = log?.userId;
-        if (!userId) return;
-        let minutes = Number(log?.totalMinutes || 0);
-        if ((!minutes || minutes <= 0) && log?.startedAt && log?.endedAt) {
-          const startTs = new Date(log.startedAt).getTime();
-          const endTs = new Date(log.endedAt).getTime();
-          if (Number.isFinite(startTs) && Number.isFinite(endTs) && endTs > startTs) {
-            minutes = (endTs - startTs) / 60000;
-          }
-        }
+      // Calculate work hours from checkin/checkout times
+      if (checkinTime && log?.checkout?.time) {
+        const checkoutTime = new Date(log.checkout.time);
+        if (!Number.isNaN(checkoutTime.getTime()) && checkoutTime > checkinTime) {
+          const minutes = (checkoutTime.getTime() - checkinTime.getTime()) / 60000;
         if (minutes > 0) {
           const key = String(userId);
           hoursMap.set(key, (hoursMap.get(key) || 0) + minutes / 60);
         }
-      });
+        }
+      }
     });
 
     setAttendanceToday(attendanceSet.size);
 
     const ranking = Array.from(hoursMap.entries())
       .map(([userId, hours]) => {
-        const employee = employeeList.find((emp) => String(emp.id) === userId);
+        const employee = employeeList.find((emp) => {
+          const empId = String(emp.id || emp._id || '');
+          return empId === userId;
+        });
         return {
           userId,
           name: employee?.name || employee?.email || 'Member',
@@ -119,10 +118,23 @@ const DashboardPage = () => {
 
         if (list.length) {
           const now = new Date();
+          const monthStart = startOfMonth(now);
+          const monthEnd = endOfMonth(now);
+
+          // Get attendance logs from Attendance module instead of Calendar
+          const attendanceLogs = await fetchLogs(
+            monthStart.toISOString(),
+            monthEnd.toISOString(),
+            undefined,
+            { userIds: list.map((emp) => emp.id || emp._id) }
+          );
+          const logList = Array.isArray(attendanceLogs) ? attendanceLogs : [];
+
+          // Still get calendar events for other purposes (if needed)
           const params = {
-            start: startOfMonth(now).toISOString(),
-            end: endOfMonth(now).toISOString(),
-            members: list.map((emp) => emp.id),
+            start: monthStart.toISOString(),
+            end: monthEnd.toISOString(),
+            members: list.map((emp) => emp.id || emp._id),
           };
 
           const eventsRes = await axios.get('/calendar', { params });
@@ -137,7 +149,8 @@ const DashboardPage = () => {
             : [];
 
           setCalendarEvents(eventList);
-          computeAttendanceAndRanking(eventList, list);
+          // Use attendance logs for time tracking calculation
+          computeAttendanceAndRanking(logList, list);
         } else {
           setCalendarEvents([]);
           setAttendanceToday(0);
@@ -184,7 +197,7 @@ const DashboardPage = () => {
   }, [tasks]);
 
   const recentActivities = useMemo(() => {
-    if (user?.role === 'owner') {
+    if (hasOwnerPermissions(user)) {
       return buildOwnerActivities({
         tasks,
         employees,
@@ -207,11 +220,17 @@ const DashboardPage = () => {
     };
   }, [hoursRanking]);
 
-  const topTenRanking = useMemo(() => hoursRanking.slice(0, 10), [hoursRanking]);
+  const topTenRanking = useMemo(
+    () =>
+      hoursRanking
+        .filter((entry) => String(entry.role || '').toLowerCase() !== 'owner')
+        .slice(0, 10),
+    [hoursRanking]
+  );
   const overduePercent = taskSummary.total ? Math.min((taskSummary.overdue / taskSummary.total) * 100, 100) : 0;
 
   useEffect(() => {
-    if (user?.role !== 'owner') {
+    if (!hasOwnerPermissions(user)) {
       setForms([]);
       setDeletionEvents([]);
       resourceSnapshotsRef.current = {
@@ -257,7 +276,7 @@ const DashboardPage = () => {
 
   const syncResourceSnapshot = useCallback(
     (key, items, getMeta, badgeLabel) => {
-      if (user?.role !== 'owner') return;
+      if (!hasOwnerPermissions(user)) return;
       const prevMap = resourceSnapshotsRef.current[key] || new Map();
       const nextMap = new Map();
       const removed = [];
@@ -332,66 +351,74 @@ const DashboardPage = () => {
   };
 
   return (
-    <div className='h-full overflow-y-auto bg-slate-50 px-6 py-6'>
+    <div className='h-full overflow-y-auto bg-white p-6'>
+      {/* Header */}
       <div className='mb-6 flex flex-wrap items-start justify-between gap-4'>
         <div>
-          <p className='text-sm text-slate-500'>Hello, {user?.name || 'team'} 👋</p>
-          <h1 className='text-3xl font-semibold text-slate-900'>Dashboard</h1>
-          <p className='text-xs text-slate-400'>Overview for {format(new Date(), 'MMMM yyyy')}</p>
+          <p className='text-sm text-text-secondary mb-1'>Hello, {user?.name || 'team'} 👋</p>
+          <h1 className='text-2xl font-bold text-text-main mb-1'>Dashboard</h1>
+          <p className='text-sm text-text-muted'>Overview for {format(new Date(), 'MMMM yyyy')}</p>
         </div>
         <button
           type='button'
           onClick={() => setRefreshTick((prev) => prev + 1)}
-          className='inline-flex items-center gap-2 rounded-full border border-slate-200 px-4 py-2 text-sm font-medium text-slate-600 transition hover:border-blue-300 hover:text-blue-600'
+          className='inline-flex items-center gap-2 rounded-xl border border-border-light bg-white px-4 py-2.5 text-sm font-medium text-text-main shadow-soft transition-all duration-200 hover:bg-bg-hover hover:border-primary hover:text-primary disabled:cursor-not-allowed disabled:opacity-60'
           disabled={loading || tasksLoading}
         >
+          <RefreshCw className={`w-4 h-4 ${loading || tasksLoading ? 'animate-spin' : ''}`} />
           {loading || tasksLoading ? 'Refreshing…' : 'Refresh'}
         </button>
       </div>
 
-      <div className='grid gap-4 sm:grid-cols-2 xl:grid-cols-4'>
+      {/* Summary Cards */}
+      <div className='grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4 mb-6'>
         {summaryCards(employees.length, taskSummary, attendanceToday).map((card) => (
-          <div key={card.title} className={cardBase}>
-            <div className='flex items-center justify-between'>
-              <p className='text-xs uppercase tracking-wide text-slate-500'>{card.title}</p>
-              <span className='rounded-2xl bg-slate-100 p-2'>{card.icon}</span>
+          <div key={card.title} className='bg-white rounded-xl border border-border-light p-6 shadow-soft hover:shadow-soft-md transition-shadow duration-200'>
+            <div className='flex items-center justify-between mb-4'>
+              <p className='text-xs font-semibold text-text-secondary uppercase tracking-wide'>{card.title}</p>
+              <div className={`rounded-lg p-2.5 ${card.iconBg}`}>
+                {card.icon}
+              </div>
             </div>
-            <div className='text-3xl font-semibold text-slate-900'>{card.value}</div>
-            <p className='text-xs text-slate-500'>{card.subtitle}</p>
+            <div className='text-3xl font-bold text-text-main mb-1'>{card.value}</div>
+            <p className='text-sm text-text-secondary'>{card.subtitle}</p>
           </div>
         ))}
       </div>
 
-      <div className='mt-6 grid gap-6 xl:grid-cols-3'>
-        <div className='space-y-6 xl:col-span-2'>
-          <div className='rounded-3xl border border-slate-100 bg-white/90 p-6 shadow-sm'>
-            <div className='flex items-center justify-between'>
+      {/* Main Content */}
+      <div className='grid gap-6 lg:grid-cols-3'>
+        {/* Left Column - 2 spans */}
+        <div className='lg:col-span-2 space-y-6'>
+          {/* Task Overview */}
+          <div className='bg-white rounded-xl border border-border-light p-6 shadow-soft'>
+            <div className='flex items-center justify-between mb-6'>
               <div>
-                <h2 className='text-lg font-semibold text-slate-900'>Task Overview</h2>
-                <p className='text-sm text-slate-500'>Progress across all assignments</p>
+                <h2 className='text-lg font-semibold text-text-main mb-1'>Task Overview</h2>
+                <p className='text-sm text-text-secondary'>Progress across all assignments</p>
               </div>
-              <TrendingUp className='h-5 w-5 text-slate-400' />
+              <TrendingUp className='h-5 w-5 text-text-muted' />
             </div>
-            <div className='mt-4 grid gap-4 md:grid-cols-3'>
-              <div className='rounded-2xl bg-slate-50 p-4'>
-                <p className='text-xs text-slate-500'>To do</p>
-                <p className='text-2xl font-semibold text-slate-900'>{taskSummary.todo}</p>
+            <div className='grid gap-4 md:grid-cols-3 mb-6'>
+              <div className='rounded-xl bg-rose-50 p-4 border border-rose-100'>
+                <p className='text-xs font-semibold text-rose-600 uppercase tracking-wide mb-2'>To do</p>
+                <p className='text-2xl font-bold text-rose-700'>{taskSummary.todo}</p>
               </div>
-              <div className='rounded-2xl bg-blue-50 p-4'>
-                <p className='text-xs text-blue-600'>In progress</p>
-                <p className='text-2xl font-semibold text-blue-700'>{taskSummary.inProgress}</p>
+              <div className='rounded-xl bg-blue-50 p-4 border border-blue-100'>
+                <p className='text-xs font-semibold text-blue-600 uppercase tracking-wide mb-2'>In progress</p>
+                <p className='text-2xl font-bold text-blue-700'>{taskSummary.inProgress}</p>
               </div>
-              <div className='rounded-2xl bg-emerald-50 p-4'>
-                <p className='text-xs text-emerald-600'>Completed</p>
-                <p className='text-2xl font-semibold text-emerald-700'>{taskSummary.done}</p>
+              <div className='rounded-xl bg-emerald-50 p-4 border border-emerald-100'>
+                <p className='text-xs font-semibold text-emerald-600 uppercase tracking-wide mb-2'>Completed</p>
+                <p className='text-2xl font-bold text-emerald-700'>{taskSummary.done}</p>
               </div>
             </div>
-            <div className='mt-6 space-y-2 text-sm text-slate-500'>
-              <div className='flex items-center justify-between'>
-                <span>Overdue tasks</span>
-                <span className='font-medium text-rose-600'>{taskSummary.overdue}</span>
+            <div className='space-y-2'>
+              <div className='flex items-center justify-between text-sm'>
+                <span className='text-text-secondary'>Overdue tasks</span>
+                <span className='font-semibold text-rose-600'>{taskSummary.overdue}</span>
               </div>
-              <div className='h-2 rounded-full bg-slate-100'>
+              <div className='h-2.5 rounded-full bg-bg-secondary overflow-hidden'>
                 <div
                   className='h-full rounded-full bg-rose-500 transition-all'
                   style={{ width: `${overduePercent}%` }}
@@ -400,139 +427,145 @@ const DashboardPage = () => {
             </div>
           </div>
 
-          <div className='rounded-3xl border border-slate-100 bg-white/90 p-6 shadow-sm'>
-            <div className='flex items-center justify-between'>
-              <div>
-                <h2 className='text-lg font-semibold text-slate-900'>Recent activity</h2>
-                <p className='text-sm text-slate-500'>Latest updates from tasks and attendance</p>
-              </div>
-              <MessageSquare className='h-5 w-5 text-slate-400' />
-            </div>
-            <div className='mt-4 space-y-4 max-h-[240px] overflow-y-auto pr-2'>
-              {recentActivities.length === 0 && (
-                <p className='text-sm text-slate-500'>No recent updates yet.</p>
-              )}
-              {recentActivities.map((item) => (
-                <div key={item.id} className='flex items-start gap-3 rounded-2xl bg-slate-50 p-4'>
-                  <span
-                    className={`rounded-full px-2 py-0.5 text-xs font-medium ${
-                      badgeStyles[item.badge] || 'bg-slate-100 text-slate-600'
-                    }`}
-                  >
-                    {item.badge}
-                  </span>
-                  <div className='flex-1'>
-                    <p className='text-sm font-medium text-slate-900'>{item.title}</p>
-                    <p className='text-xs text-slate-500'>{item.subtitle}</p>
-                  </div>
-                  <span className='text-xs text-slate-400'>{item.timeAgo}</span>
+          {/* Recent Activity & Time Tracking */}
+          <div className='grid gap-6 md:grid-cols-2'>
+            {/* Recent Activity */}
+            <div className='bg-white rounded-xl border border-border-light p-6 shadow-soft'>
+              <div className='flex items-center justify-between mb-4'>
+                <div>
+                  <h2 className='text-lg font-semibold text-text-main mb-1'>Recent Activity</h2>
+                  <p className='text-sm text-text-secondary'>Latest updates</p>
                 </div>
-              ))}
+                <MessageSquare className='h-5 w-5 text-text-muted' />
+              </div>
+              <div className='max-h-[280px] space-y-3 overflow-y-auto pr-2'>
+                {recentActivities.length === 0 ? (
+                  <p className='text-sm text-text-secondary text-center py-4'>No recent updates yet.</p>
+                ) : (
+                  recentActivities.map((item) => (
+                    <div key={item.id} className='flex items-start gap-3 rounded-lg bg-bg-secondary p-3 border border-border-light hover:bg-bg-hover transition-colors duration-200'>
+                      <span className={`rounded-lg px-2.5 py-1 text-xs font-semibold shrink-0 ${badgeStyles[item.badge] || 'bg-bg-hover text-text-secondary border border-border-light'}`}>
+                        {item.badge}
+                      </span>
+                      <div className='flex-1 min-w-0'>
+                        <p className='text-sm font-medium text-text-main truncate'>{item.title}</p>
+                        <p className='text-xs text-text-secondary truncate'>{item.subtitle}</p>
+                      </div>
+                      <span className='text-xs text-text-muted shrink-0'>{item.timeAgo}</span>
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
+
+            {/* Time Tracking */}
+            <div className='bg-white rounded-xl border border-border-light p-6 shadow-soft'>
+              <div className='flex items-center justify-between mb-4'>
+                <div>
+                  <h2 className='text-lg font-semibold text-text-main mb-1'>Time Tracking</h2>
+                  <p className='text-sm text-text-secondary'>Shift logs this month</p>
+                </div>
+                <Clock className='h-5 w-5 text-text-muted' />
+              </div>
+              <div className='space-y-4'>
+                <div>
+                  <p className='text-xs font-semibold text-text-secondary uppercase tracking-wide mb-2'>Total tracked hours</p>
+                  <p className='text-3xl font-bold text-text-main'>
+                    {timeTrackingStats.totalHours.toFixed(1)}h
+                  </p>
+                </div>
+                <div className='rounded-xl bg-bg-secondary p-4 border border-border-light'>
+                  <p className='text-xs text-text-secondary mb-1'>Average per member</p>
+                  <p className='text-xl font-bold text-text-main'>{timeTrackingStats.average.toFixed(1)}h</p>
+                </div>
+                {timeTrackingStats.topPerformer && (
+                  <div className='rounded-xl bg-emerald-50 p-4 border border-emerald-100'>
+                    <p className='text-xs font-semibold text-emerald-600 uppercase tracking-wide mb-1'>Top performer</p>
+                    <p className='text-sm font-semibold text-text-main'>{timeTrackingStats.topPerformer.name}</p>
+                    <p className='text-xs text-text-secondary'>
+                      {timeTrackingStats.topPerformer.hours.toFixed(1)}h logged this month
+                    </p>
+                  </div>
+                )}
+              </div>
             </div>
           </div>
         </div>
 
-        <div className='space-y-6'>
+        {/* Right Column - Leaderboard */}
+        <div>
           <div
             role='button'
             tabIndex={0}
             onClick={() => setLeaderboardModalOpen(true)}
             onKeyDown={handleLeaderboardKeyDown}
-            className='rounded-3xl border border-slate-100 bg-white/90 p-6 shadow-sm outline-none transition hover:border-amber-100 hover:shadow-md focus-visible:ring-2 focus-visible:ring-amber-200 cursor-pointer'
+            className='bg-white rounded-xl border border-border-light p-6 shadow-soft cursor-pointer transition-all duration-200 hover:shadow-soft-md hover:border-primary outline-none focus-visible:ring-2 focus-visible:ring-primary'
           >
-            <div className='flex items-center justify-between'>
+            <div className='flex items-center justify-between mb-4'>
               <div>
-                <h2 className='text-lg font-semibold text-slate-900'>Leaderboard</h2>
-                <p className='text-sm text-slate-500'>Top 10 by working hours</p>
+                <h2 className='text-lg font-semibold text-text-main mb-1'>Leaderboard</h2>
+                <p className='text-sm text-text-secondary'>Top 10 by hours</p>
               </div>
-              <Trophy className='h-6 w-6 text-amber-500' />
+              <Trophy className='h-6 w-6 text-yellow-500' />
             </div>
-            <div className='mt-4 space-y-3'>
-              {topTenRanking.length === 0 && (
-                <p className='text-sm text-slate-500'>No ranked members yet.</p>
-              )}
-              {topTenRanking.map((entry, idx) => (
-                <div key={entry.userId || idx} className='flex items-center justify-between'>
-                  <div className='flex items-center gap-3'>
-                    <span className='text-sm font-semibold text-slate-500'>#{idx + 1}</span>
-                    <div>
-                      <p className='text-sm font-medium text-slate-900'>{entry.name}</p>
-                      <p className='text-xs text-slate-500'>{entry.role || 'Member'}</p>
+            <div className='space-y-3 mb-4'>
+              {topTenRanking.length === 0 ? (
+                <p className='text-sm text-text-secondary text-center py-4'>No ranked members yet.</p>
+              ) : (
+                topTenRanking.map((entry, idx) => (
+                  <div key={entry.userId || idx} className='flex items-center justify-between p-2 rounded-lg hover:bg-bg-hover transition-colors duration-200'>
+                    <div className='flex items-center gap-3'>
+                      <span className='text-sm font-semibold text-text-muted w-6'>#{idx + 1}</span>
+                      <div className='min-w-0'>
+                        <p className='text-sm font-medium text-text-main truncate'>{entry.name}</p>
+                        <p className='text-xs text-text-secondary truncate'>{entry.role || 'Member'}</p>
+                      </div>
                     </div>
+                    <span className='text-sm font-semibold text-text-main'>{entry.hours.toFixed(1)}h</span>
                   </div>
-                  <span className='text-sm font-semibold text-slate-900'>{entry.hours.toFixed(1)}h</span>
-                </div>
-              ))}
-            </div>
-            <p className='mt-4 text-center text-xs font-medium text-amber-600'>Tap to view full ranking</p>
-          </div>
-
-          <div className='rounded-3xl border border-slate-100 bg-white/90 p-6 shadow-sm'>
-            <div className='flex items-center justify-between'>
-              <div>
-                <h2 className='text-lg font-semibold text-slate-900'>Time tracking</h2>
-                <p className='text-sm text-slate-500'>Captured from shift logs</p>
-              </div>
-              <Clock className='h-5 w-5 text-slate-400' />
-            </div>
-            <div className='mt-4 space-y-4'>
-              <div>
-                <p className='text-xs uppercase tracking-wide text-slate-500'>Total tracked hours</p>
-                <p className='text-3xl font-semibold text-slate-900'>
-                  {timeTrackingStats.totalHours.toFixed(1)}h
-                </p>
-              </div>
-              <div className='rounded-2xl bg-slate-50 p-4'>
-                <p className='text-xs text-slate-500'>Average per member</p>
-                <p className='text-xl font-semibold text-slate-900'>{timeTrackingStats.average.toFixed(1)}h</p>
-              </div>
-              {timeTrackingStats.topPerformer && (
-                <div className='rounded-2xl bg-emerald-50 p-4'>
-                  <p className='text-xs text-emerald-600'>Top performer</p>
-                  <p className='text-sm font-semibold text-slate-900'>{timeTrackingStats.topPerformer.name}</p>
-                  <p className='text-xs text-slate-500'>
-                    {timeTrackingStats.topPerformer.hours.toFixed(1)}h logged this month
-                  </p>
-                </div>
+                ))
               )}
             </div>
+            <p className='text-center text-sm font-semibold text-primary pt-3 border-t border-border-light'>Click to view full ranking</p>
           </div>
         </div>
       </div>
 
+      {/* Leaderboard Modal */}
       {leaderboardModalOpen && (
-        <div className='fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 px-4 py-10'>
-          <div className='w-full max-w-3xl rounded-3xl bg-white p-6 shadow-2xl'>
-            <div className='flex items-start justify-between gap-3'>
+        <div className='fixed inset-0 z-50 flex items-center justify-center bg-black/50 px-4 py-10' onClick={() => setLeaderboardModalOpen(false)}>
+          <div className='w-full max-w-3xl rounded-2xl border border-border-light bg-white p-6 shadow-soft-xl' onClick={(e) => e.stopPropagation()}>
+            <div className='flex items-start justify-between gap-3 mb-4'>
               <div>
-                <p className='text-sm uppercase tracking-wide text-amber-500'>Leaderboard</p>
-                <h3 className='text-2xl font-semibold text-slate-900'>Full ranking</h3>
-                <p className='text-xs text-slate-500'>Ordered by total working hours this month</p>
+                <p className='text-xs font-semibold text-primary uppercase tracking-wide mb-1'>Leaderboard</p>
+                <h3 className='text-2xl font-bold text-text-main mb-1'>Full Ranking</h3>
+                <p className='text-sm text-text-secondary'>Ordered by total working hours this month</p>
               </div>
               <button
                 type='button'
                 onClick={() => setLeaderboardModalOpen(false)}
-                className='rounded-full border border-slate-200 p-2 text-slate-500 transition hover:border-slate-300 hover:text-slate-800'
+                className='rounded-lg border border-border-light p-2 text-text-muted transition-colors duration-200 hover:border-border-medium hover:text-text-main hover:bg-bg-hover focus:outline-none focus:ring-2 focus:ring-primary'
               >
                 <X className='h-4 w-4' />
               </button>
             </div>
-            <div className='mt-4 max-h-[60vh] overflow-y-auto divide-y divide-slate-100'>
-              {hoursRanking.length === 0 && (
-                <p className='py-6 text-center text-sm text-slate-500'>No data available.</p>
-              )}
-              {hoursRanking.map((entry, idx) => (
-                <div key={entry.userId || idx} className='flex items-center justify-between gap-4 py-3'>
-                  <div className='flex items-center gap-4'>
-                    <span className='text-base font-semibold text-slate-500'>#{idx + 1}</span>
-                    <div>
-                      <p className='text-sm font-semibold text-slate-900'>{entry.name}</p>
-                      <p className='text-xs text-slate-500'>{entry.role || 'Member'}</p>
+            <div className='max-h-[60vh] overflow-y-auto divide-y divide-border-light'>
+              {hoursRanking.length === 0 ? (
+                <p className='py-6 text-center text-sm text-text-secondary'>No data available.</p>
+              ) : (
+                hoursRanking.map((entry, idx) => (
+                  <div key={entry.userId || idx} className='flex items-center justify-between gap-4 py-3 hover:bg-bg-hover transition-colors duration-200'>
+                    <div className='flex items-center gap-4'>
+                      <span className='text-base font-semibold text-text-muted w-8'>#{idx + 1}</span>
+                      <div>
+                        <p className='text-sm font-semibold text-text-main'>{entry.name}</p>
+                        <p className='text-xs text-text-secondary'>{entry.role || 'Member'}</p>
+                      </div>
                     </div>
+                    <span className='text-sm font-semibold text-text-main'>{entry.hours.toFixed(2)}h</span>
                   </div>
-                  <span className='text-sm font-semibold text-slate-900'>{entry.hours.toFixed(2)}h</span>
-                </div>
-              ))}
+                ))
+              )}
             </div>
           </div>
         </div>
@@ -546,25 +579,29 @@ const summaryCards = (employeeCount, taskSummary, attendanceToday) => [
     title: 'Total Users',
     value: employeeCount,
     subtitle: 'Workspace members',
-    icon: <Users className='h-5 w-5 text-blue-600' />,
+    icon: <Users className='h-5 w-5' />,
+    iconBg: 'bg-primary-light text-primary',
   },
   {
     title: 'Total Tasks',
     value: taskSummary.total,
     subtitle: 'Across all projects',
-    icon: <ClipboardList className='h-5 w-5 text-emerald-600' />,
+    icon: <ClipboardList className='h-5 w-5' />,
+    iconBg: 'bg-green-50 text-green-600',
   },
   {
     title: 'Attendance Today',
     value: attendanceToday,
     subtitle: 'Checked-in members',
-    icon: <CalendarCheck className='h-5 w-5 text-indigo-600' />,
+    icon: <CalendarCheck className='h-5 w-5' />,
+    iconBg: 'bg-purple-50 text-purple-600',
   },
   {
     title: 'Active Tasks',
     value: taskSummary.inProgress,
     subtitle: 'Currently in progress',
-    icon: <Activity className='h-5 w-5 text-amber-500' />,
+    icon: <Activity className='h-5 w-5' />,
+    iconBg: 'bg-amber-50 text-amber-600',
   },
 ];
 

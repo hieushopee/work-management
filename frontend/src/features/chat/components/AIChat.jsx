@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from "react";
-import { Send, Bot, CircleUserIcon, History, SquarePen, Trash2Icon, Settings, MessageSquare } from "lucide-react";
+import { Send, Bot, CircleUserRoundIcon, History, SquarePen, Trash2Icon, Settings, MessageSquare } from "lucide-react";
 import { useSearchParams } from "react-router-dom";
 import axios from "../../../libs/axios";
 import useUserStore from "../../../stores/useUserStore";
@@ -16,6 +16,7 @@ const AIChat = () => {
   const [temperature, setTemperature] = useState(0.7);
   const [maxTokens, setMaxTokens] = useState(2048);
   const [showSettings, setShowSettings] = useState(false);
+  const fetchRef = useRef({ loading: false, last: 0 });
 
   const currentUser = useUserStore((state) => state.user);
   const messagesEndRef = useRef(null);
@@ -29,7 +30,12 @@ const AIChat = () => {
     if (!currentUser?.id) {
       return;
     }
-    
+    if (fetchRef.current.loading) return;
+    const now = Date.now();
+    if (now - fetchRef.current.last < 1000) return; // throttle 1s
+    fetchRef.current.loading = true;
+    fetchRef.current.last = now;
+
     try {
       const res = await axios.get(`/ai/conversations/${currentUser.id}`);
       
@@ -41,6 +47,8 @@ const AIChat = () => {
       setConversations(validConversations);
     } catch (err) {
       console.error("Failed to fetch conversations:", err);
+    } finally {
+      fetchRef.current.loading = false;
     }
   }, [currentUser?.id]);
 
@@ -51,14 +59,15 @@ const AIChat = () => {
   // Load conversation from URL query param
   useEffect(() => {
     const conversationIdFromUrl = searchParams.get('conversationId');
-    if (conversationIdFromUrl && conversationIdFromUrl !== selectedConversationId) {
+    if (conversationIdFromUrl && conversationIdFromUrl === selectedConversationId) return;
+    if (conversationIdFromUrl) {
       handleSelectConversation(conversationIdFromUrl);
     } else if (!conversationIdFromUrl && selectedConversationId) {
       // Clear if URL param is removed
       setSelectedConversationId(null);
       setMessages([]);
     }
-  }, [searchParams]);
+  }, [searchParams, selectedConversationId]);
 
   useEffect(() => {
     scrollToBottom();
@@ -66,8 +75,14 @@ const AIChat = () => {
 
   const handleSelectConversation = async (conversationId) => {
     if (isAiTyping) return;
+    if (!conversationId || conversationId === selectedConversationId) {
+      return;
+    }
     setSelectedConversationId(conversationId);
-    setSearchParams({ conversationId });
+    const currentParam = searchParams.get('conversationId');
+    if (currentParam !== conversationId) {
+      setSearchParams({ conversationId });
+    }
     try {
       const res = await axios.get(`/ai/conversation/${conversationId}`);
       setMessages(res.data.messages || []);
@@ -106,7 +121,7 @@ const AIChat = () => {
     } catch (err) {
       console.error("Failed to delete conversation:", err);
       // Show user-friendly error message
-      alert("Không thể xóa cuộc trò chuyện. Vui lòng thử lại.");
+      alert("Cannot delete conversation. Please try again.");
     }
   };
 
@@ -144,7 +159,7 @@ const AIChat = () => {
     } catch (err) {
       setMessages((prev) => [
         ...prev,
-        { role: "assistant", content: "❌ Không thể kết nối AI hoặc hệ thống AI đang bận, vui lòng thử lại sau." }
+        { role: "assistant", content: "❌ Cannot connect to AI or the AI system is busy, please try again later." }
       ]);
     } finally {
       setIsAiTyping(false);
@@ -168,11 +183,11 @@ const AIChat = () => {
       <img
         src={avatar}
         alt="User avatar"
-        className="w-9 h-9 rounded-full object-cover border border-gray-200"
+        className="w-9 h-9 rounded-full object-cover border-2 border-white"
       />
     ) : (
-      <div className="w-9 h-9 rounded-full bg-gray-200 flex items-center justify-center border border-gray-200">
-        <CircleUserIcon className="w-5 h-5 text-gray-500" />
+      <div className="w-9 h-9 rounded-full bg-primary-light flex items-center justify-center">
+        <CircleUserRoundIcon className="h-8 w-8 text-primary" />
       </div>
     );
 
@@ -183,35 +198,37 @@ const AIChat = () => {
   );
 
   return (
-    <div className="flex flex-col h-full min-h-0 bg-white rounded shadow overflow-hidden">
+    <div className="flex flex-col h-full min-h-0 bg-white rounded-2xl shadow overflow-hidden border border-border-light">
       {/* Header */}
-      <div className="sticky top-0 z-10 bg-white border-b border-gray-200 h-20 px-5 flex items-center justify-between">
+      <div className="sticky top-0 z-10 bg-white border-b border-border-light h-20 px-5 flex items-center justify-between">
         <div className="flex items-center gap-3">
           <MessageSquare className="w-6 h-6 text-purple-500" />
           <div>
-            <h2 className="text-lg font-semibold text-gray-800">
+            <h2 className="text-lg font-semibold text-text-main">
               {selectedConversationId ? 'Chat' : 'New Chat'}
             </h2>
-            <p className="text-sm text-gray-500">
-              Model: {model} | Backend: OpenRouter
+            <p className="text-sm text-text-secondary">
+              Model: {model}
             </p>
           </div>
         </div>
         <div className="flex items-center gap-4">
           <button
             onClick={() => setShowSettings(!showSettings)}
-            className="p-2 rounded-lg hover:bg-gray-100 transition-colors"
+            className="p-2 rounded-lg hover:bg-bg-hover transition-colors"
             title="Settings"
           >
-            <Settings className="w-5 h-5 text-gray-500" />
+            <Settings className="w-5 h-5 text-text-secondary" />
           </button>
-          <SquarePen
-            className="w-6 h-6 text-gray-500 cursor-pointer hover:text-blue-500"
+          <button
             onClick={handleNewChat}
+            className="p-2 rounded-lg hover:bg-bg-hover transition-colors"
             title="New Chat"
-          />
+          >
+            <SquarePen className="w-5 h-5 text-text-secondary" />
+          </button>
           <span className="bg-purple-100 text-purple-800 px-3 py-1.5 rounded text-xs font-semibold uppercase tracking-wide">
-            Lobe Chat
+            AI Chat
           </span>
         </div>
       </div>
@@ -220,19 +237,19 @@ const AIChat = () => {
       <div className="flex flex-1 min-h-0">
         {/* Settings Panel */}
         {showSettings && (
-          <div className="w-[320px] shrink-0 border-r border-gray-200 flex flex-col bg-gray-50">
-            <div className="p-4 border-b border-gray-200">
-              <h3 className="text-lg font-semibold text-gray-800">Model Settings</h3>
+          <div className="w-[320px] shrink-0 border-r border-border-light flex flex-col bg-bg-secondary">
+            <div className="p-4 border-b border-border-light">
+              <h3 className="text-lg font-semibold text-text-main">Model Settings</h3>
             </div>
             <div className="flex-1 overflow-y-auto p-4 space-y-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                <label className="block text-sm font-medium text-text-main mb-2">
                   Model
                 </label>
                 <select
                   value={model}
                   onChange={(e) => setModel(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
+                  className="w-full px-3 py-2 border border-border-light rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
                 >
                   <option value="anthropic/claude-3-haiku">Claude 3 Haiku</option>
                   <option value="anthropic/claude-3-sonnet">Claude 3 Sonnet</option>
@@ -247,13 +264,18 @@ const AIChat = () => {
         {/* Chat Window */}
         <div className="flex flex-col flex-1 min-w-0 min-h-0">
           {/* Block hiển thị tin nhắn dạng bubble chuẩn */}
-          <div className="flex-1 min-h-0 overflow-y-auto px-5 py-6 space-y-5">
+          <div
+            className={`flex-1 min-h-0 px-5 py-6 space-y-5 ${
+              messages.length > 0 ? "overflow-y-auto" : "overflow-hidden"
+            } bg-white`}
+            style={{ borderBottomLeftRadius: '1rem', borderBottomRightRadius: '1rem' }}
+          >
             {messages.length === 0 ? (
               <div className="flex items-center justify-center h-full">
                 <div className="text-center">
                   <Bot className="w-16 h-16 text-gray-300 mx-auto mb-4" />
-                  <h3 className="text-lg font-medium text-gray-500 mb-2">Start a conversation</h3>
-                  <p className="text-gray-400">Ask me anything! I'm powered by Claude.</p>
+                  <h3 className="text-lg font-medium text-text-secondary mb-2">Start a conversation</h3>
+                  <p className="text-text-muted">Ask me anything! I'm powered by Claude.</p>
                 </div>
               </div>
             ) : (
@@ -264,7 +286,7 @@ const AIChat = () => {
                     <div key={i} className={`flex ${isUser ? "justify-end" : "justify-start"}`}>
                       <div className={`flex items-end gap-2 max-w-[80%] ${isUser ? "flex-row-reverse" : "flex-row"}`}>
                         {isUser ? renderUserAvatar(currentUser?.avatar) : renderAiAvatar()}
-                        <div className={`px-4 py-2 rounded-2xl whitespace-pre-wrap shadow-sm ${isUser ? "bg-blue-500 text-white" : "bg-gray-200 text-gray-900"}`}>
+                        <div className={`px-4 py-2 rounded-2xl whitespace-pre-wrap shadow-sm ${isUser ? "bg-blue-500 text-white" : "bg-gray-200 text-text-main"}`}>
                           {m.content}
                         </div>
                       </div>
@@ -275,7 +297,7 @@ const AIChat = () => {
                   <div className="flex justify-start">
                     <div className="flex items-end gap-2 max-w-[80%] flex-row">
                       {renderAiAvatar()}
-                      <div className="px-4 py-2 rounded-2xl whitespace-pre-wrap shadow-sm bg-gray-200 text-gray-900">
+                      <div className="px-4 py-2 rounded-2xl whitespace-pre-wrap shadow-sm bg-gray-200 text-text-main">
                         <div className="flex items-center justify-center gap-2 h-5">
                           <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce"></div>
                           <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '0.1s' }}></div>
@@ -292,7 +314,7 @@ const AIChat = () => {
           {/* Input field */}
           <form
             onSubmit={handleSubmit}
-            className="px-5 py-4 flex gap-2 border-t border-gray-200 bg-white shrink-0"
+            className="px-5 py-4 flex gap-2 border-t border-border-light bg-white shrink-0"
           >
             <div className="flex-1 relative">
               <textarea
@@ -300,7 +322,7 @@ const AIChat = () => {
                 onChange={(e) => setInput(e.target.value)}
                 onKeyPress={handleKeyPress}
                 placeholder="Type your message here..."
-                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 resize-none"
+                className="w-full px-4 py-3 border border-border-light rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 resize-none"
                 rows="1"
                 style={{ minHeight: '48px', maxHeight: '120px' }}
                 disabled={isAiTyping}

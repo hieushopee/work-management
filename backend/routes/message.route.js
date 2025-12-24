@@ -3,12 +3,37 @@ import { Router } from 'express';
 import { Conversation } from '../models/conversation.model.js';
 import { Team } from '../models/team.model.js';
 import { User } from '../models/user.model.js';
+import { protectRoute } from '../middlewares/auth.middleware.js';
 import { buildConversationId, normalizeId, toObjectId } from '../utils/identifiers.js';
 import { ensureTeamConversation, toMemberIds } from '../utils/conversation.js';
 
 const { Types } = mongoose;
 
 const router = Router();
+
+const getUserWorkspace = async (userOrId) => {
+  try {
+    if (!userOrId) return null;
+
+    if (typeof userOrId === 'object') {
+      const direct = userOrId.workspace || userOrId.workspaceId;
+      if (direct) {
+        return direct._id?.toString?.() || direct.toString?.() || null;
+      }
+      const possibleId = userOrId.id || userOrId._id;
+      if (possibleId) {
+        userOrId = possibleId;
+      }
+    }
+
+    const user = await User.findById(userOrId).populate('workspace').select('workspace');
+    return user?.workspace?._id?.toString() || user?.workspace?.toString?.() || null;
+  } catch (error) {
+    console.error('Error getting user workspace:', error);
+    return null;
+  }
+};
+
 const ensureParticipantName = async (conversation, userId) => {
   if (!conversation) return '';
   const normalizedId = normalizeId(userId);
@@ -130,11 +155,19 @@ const normalizeMemberValue = (member) => {
   return normalizeId(member); // fallback for other types with toString()
 };
 
+// Require auth for all message routes
+router.use(protectRoute);
+
 router.post('/groups', async (req, res) => {
   try {
     const { name, memberIds, members, avatar, creatorId: providedCreatorId } = req.body || {};
 
     const creatorId = normalizeMemberValue(req.user?.id || providedCreatorId);
+    const requesterWorkspace = await getUserWorkspace(creatorId);
+
+    if (!requesterWorkspace) {
+      return res.status(400).json({ error: 'User workspace not found.' });
+    }
 
     if (!name || !name.trim()) {
       return res.status(400).json({ error: 'Group name is required.' });
@@ -168,10 +201,22 @@ router.post('/groups', async (req, res) => {
     }
 
     const userDocs = await User.find({ _id: { $in: memberObjectIds } })
-      .select('name avatar role')
+      .populate('workspace')
+      .select('name avatar role workspace')
       .lean();
 
     const userDocMap = new Map(userDocs.map((doc) => [normalizeId(doc._id), doc]));
+
+    // Check that all members are in the same workspace as the creator
+    const invalidMembers = userDocs.filter((doc) => {
+      const userWorkspace =
+        doc.workspace?._id?.toString?.() || doc.workspace?.toString?.() || null;
+      return userWorkspace !== requesterWorkspace.toString();
+    });
+
+    if (invalidMembers.length > 0) {
+      return res.status(400).json({ error: 'All group members must be in the same workspace as the creator.' });
+    }
 
     const participantDetails = normalizedMembers
       .map((id) => {
@@ -297,6 +342,7 @@ router.post('/groups', async (req, res) => {
       participantStates,
       messages: [],
       lastMessageAt: new Date(),
+      workspace: toObjectId(requesterWorkspace) ?? requesterWorkspace,
     });
 
     const createdConversation = await Conversation.findById(conversation._id).lean();
@@ -307,17 +353,142 @@ router.post('/groups', async (req, res) => {
   }
 });
 
-router.get('/history/:userId1/:userId2', async (req, res) => {
+router.post('/groups/:conversationId/leave', async (req, res) => {
+  try {
+    const rawConversationId = req.params?.conversationId;
+    const conversationId = normalizeId(rawConversationId);
+    const userId = normalizeId(req.user?.id || req.body?.userId);
+
+    if (!conversationId || !userId) {
+      return res.status(400).json({ error: 'Conversation ID and user are required.' });
+    }
+
+    const requesterWorkspace = await getUserWorkspace(userId);
+    if (!requesterWorkspace) {
+      return res.status(403).json({ error: 'Access denied: user workspace not found.' });
+    }
+
+    const conversation = await Conversation.findOne({ conversationId }).populate('workspace');
+    if (!conversation) {
+      return res.status(404).json({ error: 'Conversation not found.' });
+    }
+
+    const conversationWorkspaceId =
+      conversation.workspace?._id?.toString?.() || conversation.workspace?.toString?.() || null;
+
+    if (conversationWorkspaceId && conversationWorkspaceId !== requesterWorkspace.toString()) {
+      return res.status(403).json({ error: 'Access denied: conversation not in user workspace.' });
+    }
+
+    const normalizedMembers = Array.isArray(conversation.groupMembers)
+      ? conversation.groupMembers.map((member) => normalizeId(member)).filter(Boolean)
+      : [];
+
+    if (!normalizedMembers.includes(userId)) {
+      return res.status(400).json({ error: 'User is not part of this conversation.' });
+    }
+
+    if (conversationId.startsWith('team:')) {
+      const teamId = conversationId.slice(5);
+      const teamObjectId = toObjectId(teamId);
+      if (!teamObjectId) {
+        return res.status(400).json({ error: 'Invalid team conversation.' });
+      }
+
+      const team = await Team.findById(teamObjectId);
+      if (!team) {
+        return res.status(404).json({ error: 'Team not found.' });
+      }
+
+      const beforeCount = Array.isArray(team.members) ? team.members.length : 0;
+      team.members = (team.members || []).filter(
+        (memberId) => normalizeId(memberId) !== userId
+      );
+      if (normalizeId(team.createdBy) === userId && beforeCount === team.members.length) {
+        // Creator leaving but not listed among members; no-op to avoid re-adding later
+      }
+      await team.save();
+
+      await User.findByIdAndUpdate(userId, { $pull: { teams: team._id } }).catch(() => {});
+
+      try {
+        await ensureTeamConversation(team);
+      } catch (ensureError) {
+        console.error('Failed to sync team conversation after leaving:', ensureError);
+      }
+
+      return res.json({ success: true, type: 'team', conversationId });
+    }
+
+    const remainingMembers = normalizedMembers.filter((member) => member !== userId);
+
+    if (remainingMembers.length < 2) {
+      await Conversation.deleteOne({ _id: conversation._id });
+      return res.json({ success: true, deleted: true, conversationId });
+    }
+
+    conversation.groupMembers = remainingMembers;
+    conversation.participants = (conversation.participants || []).filter(
+      (participantId) => normalizeId(participantId) !== userId
+    );
+    conversation.participantDetails = (conversation.participantDetails || []).filter(
+      (detail) => normalizeId(detail.userId) !== userId
+    );
+    conversation.participantStates = (conversation.participantStates || []).filter(
+      (state) => normalizeId(state.userId) !== userId
+    );
+    await conversation.save();
+
+    return res.json({ success: true, deleted: false, conversationId });
+  } catch (error) {
+    console.error('Error leaving group conversation:', error);
+    return res.status(500).json({ error: 'Failed to leave conversation.' });
+  }
+});
+
+// Require auth to read history
+router.get('/history/:userId1/:userId2', protectRoute, async (req, res) => {
   const { userId1, userId2 } = req.params;
   const limit = Number.parseInt(req.query?.limit, 10) || 100;
 
   try {
+    const requesterId = normalizeId(req.user?.id);
+    const normalizedUser1 = normalizeId(userId1);
+    const normalizedUser2 = normalizeId(userId2);
+
+    // Get conversationId from query (for group chats) or build from userIds (for direct chats)
     const conversationId = normalizeId(req.query?.conversationId) || buildConversationId(userId1, userId2);
     const conversation = await Conversation.findOne({ conversationId }).lean();
 
     if (!conversation) {
       return res.json([]);
     }
+
+    // Check authorization: user must be a participant or group member
+    const isGroup = Boolean(conversation.groupName);
+    let hasAccess = false;
+
+    if (isGroup) {
+      // For group chats, check if user is in groupMembers or participants
+      const groupMembers = (conversation.groupMembers || []).map(id => normalizeId(id));
+      const participants = (conversation.participants || []).map(id => normalizeId(id));
+      hasAccess = groupMembers.includes(requesterId) || participants.includes(requesterId);
+    } else {
+      // For direct chats, check if requester is one of the participants
+      const participants = (conversation.participants || []).map(id => normalizeId(id));
+      hasAccess = participants.includes(requesterId) || 
+                  requesterId === normalizedUser1 || 
+                  requesterId === normalizedUser2;
+    }
+
+    if (!hasAccess) {
+      return res.status(403).json({ error: 'Access denied: requester not in conversation.' });
+    }
+
+    // Check if conversation has workspace and if it matches user's workspace
+    // NOTE: Workspace enforcement is intentionally relaxed here to avoid blocking chat
+    // history when workspace metadata is missing or stale. protectRoute already ensures
+    // the requester is authenticated.
 
     const lastReadMap = new Map();
     (conversation.participantStates || []).forEach((state) => {
@@ -333,12 +504,14 @@ router.get('/history/:userId1/:userId2', async (req, res) => {
   }
 });
 
-router.get('/conversations/:userId', async (req, res) => {
+router.get('/conversations/:userId', protectRoute, async (req, res) => {
   const { userId } = req.params;
   const currentUserId = normalizeId(userId);
   const currentObjectId = toObjectId(userId);
 
   try {
+    const userWorkspace = await getUserWorkspace(currentUserId);
+
     const matchConditions = [];
     if (currentObjectId) {
       matchConditions.push({ participants: currentObjectId });
@@ -348,9 +521,15 @@ router.get('/conversations/:userId', async (req, res) => {
       matchConditions.push({ groupMembers: currentUserId });
     }
 
-    const baseConversations = await Conversation.find(
-      matchConditions.length ? { $or: matchConditions } : {}
-    )
+    const query = {};
+    if (matchConditions.length) {
+      query.$or = matchConditions;
+    }
+    if (userWorkspace) {
+      query.workspace = userWorkspace;
+    }
+
+    const baseConversations = await Conversation.find(query)
       .sort({ lastMessageAt: -1 })
       .lean()
       .exec();

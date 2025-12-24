@@ -1,20 +1,47 @@
 import OpenAI from "openai";
 import { Chat } from '../models/chat.model.js';
+import { OPENROUTER_API_KEY, OPENROUTER_MODEL } from '../config/env.js';
 
-const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+const openai = new OpenAI({
+  apiKey: OPENROUTER_API_KEY,
+  baseURL: "https://openrouter.ai/api/v1",
+});
+
+const clamp = (value, min, max) => Math.min(Math.max(value, min), max);
 
 export const chatWithOpenAI = async (req, res) => {
   try {
-    const { messages, userId, conversationId } = req.body || {};
+    const {
+      messages,
+      userId,
+      conversationId,
+      model,
+      temperature,
+      maxTokens,
+    } = req.body || {};
     if (!messages || !Array.isArray(messages) || messages.length === 0) {
       return res.status(400).json({ error: 'Missing valid messages' });
     }
 
+    if (!OPENROUTER_API_KEY) {
+      return res.status(500).json({ error: 'Missing OpenRouter API key' });
+    }
+
+    const resolvedModel = typeof model === 'string' && model.trim()
+      ? model.trim()
+      : OPENROUTER_MODEL;
+    const resolvedTemperature = typeof temperature === 'number'
+      ? clamp(temperature, 0, 2)
+      : 0.3;
+    const resolvedMaxTokens = Number.isFinite(maxTokens)
+      ? clamp(Math.floor(maxTokens), 1, 4096)
+      : 1024;
+
     const aiResult = await openai.chat.completions.create({
-      model: "gpt-3.5-turbo",
+      model: resolvedModel,
       messages,
-      max_tokens: 1024,
-      temperature: 0.3,
+      max_tokens: resolvedMaxTokens,
+      temperature: resolvedTemperature,
     });
 
     const aiContent = aiResult.choices?.[0]?.message?.content?.trim() || "";

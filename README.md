@@ -102,7 +102,8 @@
    IMAGEKIT_PUBLIC_KEY=your_imagekit_public_key
    IMAGEKIT_PRIVATE_KEY=your_imagekit_private_key
    IMAGEKIT_URL_ENDPOINT=https://ik.imagekit.io/your_imagekit_id
-   OPENROUTER_API_KEY=your_openrouter_api_key
+OPENROUTER_API_KEY=your_openrouter_api_key
+OPENROUTER_MODEL=openai/gpt-4o-mini
    ```
 
 5. **Start MongoDB**

@@ -15,8 +15,8 @@ import { protectRoute } from '../middlewares/auth.middleware.js';
 const router = express.Router();
 
 router.post('/', protectRoute, createForm);
-router.get('/', getForms);
-router.get('/:formId', getFormById);
+router.get('/', protectRoute, getForms);
+router.get('/:formId', protectRoute, getFormById);
 router.delete('/:formId', protectRoute, deleteForm);
 
 router.post('/:formId/options', protectRoute, addOptionToForm);

@@ -3,13 +3,16 @@ import { X, Clipboard, AlignLeft, User, Calendar, CheckCircle, AlertCircle, Targ
 import useTeamStore from '../stores/useTeamStore';
 import HierarchicalAssignTo from './HierarchicalAssignTo';
 
+const priorityOptions = ['Low', 'Medium', 'High', 'Critical'];
+
 const TaskForm = ({ type, employees, task, onSubmit, isLoading, setIsOpen }) => {
     const { teams, getAllTeams } = useTeamStore();
     const [taskData, setTaskData] = useState({
         name: '',
         description: '',
         assignedTo: [], // Changed to array for multiple assignments
-        deadline: ''
+        deadline: '',
+        priority: 'Medium'
     });
 
     const [errors, setErrors] = useState({});
@@ -24,14 +27,16 @@ const TaskForm = ({ type, employees, task, onSubmit, isLoading, setIsOpen }) => 
                 name: task.name || '',
                 description: task.description || '',
                 assignedTo: task.assignedTo || [], // Handle both string and array
-                deadline: task.deadline ? new Date(task.deadline).toISOString().split('T')[0] : ''
+                deadline: task.deadline ? new Date(task.deadline).toISOString().split('T')[0] : '',
+                priority: task.priority || 'Medium'
             });
         } else if (type === 'create') {
             setTaskData({
                 name: '',
                 description: '',
                 assignedTo: [],
-                deadline: ''
+                deadline: '',
+                priority: 'Medium'
             });
         }
     }, [task, type]);
@@ -46,17 +51,17 @@ const TaskForm = ({ type, employees, task, onSubmit, isLoading, setIsOpen }) => 
                 if (!value.trim()) return 'Description is required';
                 if (value.trim().length < 10) return 'Description must be at least 10 characters';
                 return '';
-            case 'assignedTo':
-                if (!value || (Array.isArray(value) && value.length === 0)) return 'Please assign the task to at least one person';
-                return '';
             case 'deadline': {
-                if (!value) return 'Deadline is required';
+                if (!value) return '';
                 const deadlineDate = new Date(value);
                 const today = new Date();
                 today.setHours(0, 0, 0, 0);
                 if (deadlineDate < today) return 'Deadline cannot be in the past';
                 return '';
             }
+            case 'priority':
+                if (!value) return 'Priority is required';
+                return '';
             default:
                 return '';
         }
@@ -231,43 +236,74 @@ const TaskForm = ({ type, employees, task, onSubmit, isLoading, setIsOpen }) => 
                                     )}
                                 </div>
 
-                                <div className="space-y-1">
-                                    <label htmlFor="deadline" className="block text-sm font-medium text-slate-700 mb-1">
-                                        Deadline <span className="text-red-500">*</span>
-                                    </label>
-                                    <div className="relative">
-                                        <span className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
-                                            <Calendar className={`w-5 h-5 ${errors.deadline ? 'text-red-400' : 'text-slate-400'}`} />
-                                        </span>
-                                        <input
-                                            id="deadline"
-                                            name="deadline"
-                                            type="date"
-                                            className={`w-full pl-10 pr-10 py-3 border rounded-lg transition-all duration-200 ${
-                                                errors.deadline
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    <div className="space-y-1">
+                                        <label htmlFor="deadline" className="block text-sm font-medium text-slate-700 mb-1">
+                                            Deadline
+                                        </label>
+                                        <div className="relative">
+                                            <span className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
+                                                <Calendar className={`w-5 h-5 ${errors.deadline ? 'text-red-400' : 'text-slate-400'}`} />
+                                            </span>
+                                            <input
+                                                id="deadline"
+                                                name="deadline"
+                                                type="date"
+                                                className={`w-full pl-10 pr-10 py-3 border rounded-lg transition-all duration-200 ${
+                                                    errors.deadline
+                                                        ? 'border-red-300 focus:outline-none focus:ring-red-500 bg-red-50'
+                                                        : 'border-slate-300 focus:outline-none focus:ring-blue-500 hover:border-slate-400'
+                                                }`}
+                                                value={taskData.deadline}
+                                                onChange={(e) => handleChange('deadline', e.target.value)}
+                                                onBlur={() => handleBlur('deadline')}
+                                                autoComplete="off"
+                                            />
+                                            <span className="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none">
+                                                {errors.deadline ? (
+                                                    <AlertCircle className="w-5 h-5 text-red-400" />
+                                                ) : taskData.deadline && !errors.deadline ? (
+                                                    <CheckCircle className="w-5 h-5 text-green-400" />
+                                                ) : null}
+                                            </span>
+                                        </div>
+                                        {errors.deadline && (
+                                            <p className="text-sm text-red-600 flex items-center gap-1">
+                                                <AlertCircle className="w-4 h-4" />
+                                                {errors.deadline}
+                                            </p>
+                                        )}
+                                    </div>
+
+                                    <div className="space-y-1">
+                                        <label htmlFor="priority" className="block text-sm font-medium text-slate-700 mb-1">
+                                            Priority <span className="text-red-500">*</span>
+                                        </label>
+                                        <select
+                                            id="priority"
+                                            name="priority"
+                                            className={`w-full px-3 py-3 border rounded-lg transition-all duration-200 ${
+                                                errors.priority
                                                     ? 'border-red-300 focus:outline-none focus:ring-red-500 bg-red-50'
                                                     : 'border-slate-300 focus:outline-none focus:ring-blue-500 hover:border-slate-400'
                                             }`}
-                                            value={taskData.deadline}
-                                            onChange={(e) => handleChange('deadline', e.target.value)}
-                                            onBlur={() => handleBlur('deadline')}
-                                            autoComplete="off"
-                                            required
-                                        />
-                                        <span className="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none">
-                                            {errors.deadline ? (
-                                                <AlertCircle className="w-5 h-5 text-red-400" />
-                                            ) : taskData.deadline && !errors.deadline ? (
-                                                <CheckCircle className="w-5 h-5 text-green-400" />
-                                            ) : null}
-                                        </span>
+                                            value={taskData.priority}
+                                            onChange={(e) => handleChange('priority', e.target.value)}
+                                            onBlur={() => handleBlur('priority')}
+                                        >
+                                            {priorityOptions.map((option) => (
+                                                <option key={option} value={option}>
+                                                    {option}
+                                                </option>
+                                            ))}
+                                        </select>
+                                        {errors.priority && (
+                                            <p className="text-sm text-red-600 flex items-center gap-1">
+                                                <AlertCircle className="w-4 h-4" />
+                                                {errors.priority}
+                                            </p>
+                                        )}
                                     </div>
-                                    {errors.deadline && (
-                                        <p className="text-sm text-red-600 flex items-center gap-1">
-                                            <AlertCircle className="w-4 h-4" />
-                                            {errors.deadline}
-                                        </p>
-                                    )}
                                 </div>
                             </div>
                         </div>

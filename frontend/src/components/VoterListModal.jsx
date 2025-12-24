@@ -1,27 +1,29 @@
-import React from "react";
+import React, { useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
-import { X, Users, CheckCircle } from "lucide-react";
+import { X, CheckCircle, CircleUserRoundIcon } from "lucide-react";
 
 const Avatar = ({ user, size = 'h-8 w-8' }) => {
-  if (user?.avatar) {
+  const [imageError, setImageError] = useState(false);
+  
+  // If user has avatar and no error, display the image (like in header)
+  if (user?.avatar && !imageError) {
     return (
       <img
         src={user.avatar}
         alt={user?.name || 'Voter avatar'}
-        className={`${size} rounded-full object-cover border border-gray-200`}
+        className={`${size} rounded-full object-cover border-2 border-white`}
+        onError={() => setImageError(true)}
       />
     );
   }
 
-  const initials = (user?.name || '').slice(0, 2).toUpperCase();
+  // Fallback: display CircleUserRoundIcon with primary-light background (like in header)
+  const sizeNum = parseInt(size.replace(/\D/g, '')) || 8;
+  const iconSize = sizeNum >= 10 ? 'h-10 w-10' : sizeNum >= 8 ? 'h-8 w-8' : 'h-6 w-6';
 
   return (
-    <div className={`${size} rounded-full flex items-center justify-center bg-blue-100 border border-gray-200`}>
-      {initials ? (
-        <span className='text-sm font-semibold text-blue-600'>{initials}</span>
-      ) : (
-        <Users className='h-4 w-4 text-blue-400' />
-      )}
+    <div className={`${size} rounded-full flex items-center justify-center bg-primary-light`}>
+      <CircleUserRoundIcon className={`${iconSize} text-primary`} />
     </div>
   );
 };
@@ -43,28 +45,28 @@ export default function VoterListModal({ open, onClose, options, users }) {
             exit={{ scale: 0.9, opacity: 0, y: 30 }}
             transition={{ duration: 0.2, ease: "easeOut" }}
           >
-            <div className="flex items-center justify-between p-6 border-b border-gray-100">
+            <div className="flex items-center justify-between p-6 border-b border-border-light">
               <div className="flex items-center gap-3">
-                <div className="p-2 bg-blue-100 rounded-full">
-                  <CheckCircle className="w-6 h-6 text-blue-600" />
+                <div className="p-2 bg-primary-light rounded-full">
+                  <CheckCircle className="w-6 h-6 text-primary" />
                 </div>
-                <h2 className="text-2xl font-bold text-gray-900">Voting Details</h2>
+                <h2 className="text-2xl font-bold text-text-main">Voting Details</h2>
               </div>
               <button
                 onClick={onClose}
-                className="p-2 rounded-full hover:bg-gray-100 transition-colors"
+                className="p-2 rounded-full hover:bg-bg-hover transition-colors"
               >
-                <X className="w-6 h-6 text-gray-500" />
+                <X className="w-6 h-6 text-text-secondary" />
               </button>
             </div>
 
             <div className="p-6 max-h-[calc(90vh-140px)] overflow-y-auto">
               <div className="space-y-6">
                 {options.map((option) => (
-                  <div key={option.id} className="bg-gray-50 rounded-2xl p-6 border border-gray-100">
+                  <div key={option.id} className="bg-bg-secondary rounded-2xl p-6 border border-border-light">
                     <div className="flex items-center justify-between mb-4">
-                      <h3 className="text-lg font-semibold text-gray-900">{option.text}</h3>
-                      <span className="px-3 py-1 bg-blue-100 text-blue-700 rounded-full text-sm font-medium">
+                      <h3 className="text-lg font-semibold text-text-main">{option.text}</h3>
+                      <span className="px-3 py-1 bg-primary-light text-primary rounded-full text-sm font-medium">
                         {option.voters.length} vote{option.voters.length !== 1 ? 's' : ''}
                       </span>
                     </div>
@@ -73,15 +75,15 @@ export default function VoterListModal({ open, onClose, options, users }) {
                         {option.voters.map((voter, idx) => {
                           const user = users.find(u => u.id === voter.id) || voter;
                           return (
-                            <div key={idx} className="flex items-center gap-3 p-3 bg-white rounded-xl border border-gray-200">
+                            <div key={idx} className="flex items-center gap-3 p-3 bg-white rounded-xl border border-border-light">
                               <Avatar user={user} />
-                              <span className="font-medium text-gray-900">{voter.name}</span>
+                              <span className="font-medium text-text-main">{voter.name}</span>
                             </div>
                           );
                         })}
                       </div>
                     ) : (
-                      <p className="text-gray-500 italic">No votes yet</p>
+                      <p className="text-text-secondary italic">No votes yet</p>
                     )}
                   </div>
                 ))}

@@ -51,19 +51,19 @@ const TeamSidebar = ({ teams, employees, onTeamSelect, onShowAll, onCreateTeam, 
   return (
     <div className="w-full h-full flex flex-col">
       {/* Header */}
-      <div className="p-4 border-b border-gray-200">
-        <h2 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
+      <div className="p-4 border-b border-border-light">
+        <h2 className="text-lg font-semibold text-text-main flex items-center gap-2">
           <Users className="w-5 h-5 text-blue-600" />
           Teams & Members
         </h2>
       </div>
 
       {/* Action Buttons */}
-      <div className="p-4 border-b border-gray-200">
+      <div className="p-4 border-b border-border-light">
         <div className="flex gap-2">
           <button
             onClick={onShowAll}
-            className="flex-1 flex items-center justify-center gap-1 p-2 rounded-lg bg-gray-100 hover:bg-gray-200 text-gray-700 transition-colors"
+            className="flex-1 flex items-center justify-center gap-1 p-2 rounded-lg bg-bg-hover hover:bg-gray-200 text-text-main transition-colors"
             title="Show All Employees"
           >
             <User className="w-4 h-4" />
@@ -104,18 +104,18 @@ const TeamSidebar = ({ teams, employees, onTeamSelect, onShowAll, onCreateTeam, 
                 className={`p-3 rounded-lg cursor-pointer transition-colors ${
                   isSelected 
                     ? 'bg-blue-100 text-blue-700 border-2 border-blue-300' 
-                    : 'bg-gray-50 hover:bg-gray-100 text-gray-700 border border-gray-200'
+                    : 'bg-bg-secondary hover:bg-bg-hover text-text-main border border-border-light'
                 }`}
                 onClick={() => onTeamSelect?.(team)}
               >
                 <div className="flex items-center justify-between">
                   <span className="font-medium text-sm">{team.name}</span>
-                  <span className="text-xs text-gray-500 bg-white px-2 py-1 rounded-full">
+                  <span className="text-xs text-text-secondary bg-white px-2 py-1 rounded-full">
                     {members.length}
                   </span>
                 </div>
                 {team.description && (
-                  <p className="text-xs text-gray-500 mt-1 truncate">{team.description}</p>
+                  <p className="text-xs text-text-secondary mt-1 truncate">{team.description}</p>
                 )}
               </div>
             );
@@ -127,26 +127,26 @@ const TeamSidebar = ({ teams, employees, onTeamSelect, onShowAll, onCreateTeam, 
               className={`p-3 rounded-lg cursor-pointer transition-colors ${
                 selectedTeam === 'unassigned'
                   ? 'bg-orange-100 text-orange-700 border-2 border-orange-300' 
-                  : 'bg-gray-50 hover:bg-gray-100 text-gray-700 border border-gray-200'
+                  : 'bg-bg-secondary hover:bg-bg-hover text-text-main border border-border-light'
               }`}
               onClick={() => onTeamSelect?.({ id: 'unassigned', name: 'Unassigned' })}
             >
               <div className="flex items-center justify-between">
                 <span className="font-medium text-sm">Unassigned</span>
-                <span className="text-xs text-gray-500 bg-white px-2 py-1 rounded-full">
+                <span className="text-xs text-text-secondary bg-white px-2 py-1 rounded-full">
                   {getUnassignedMembers().length}
                 </span>
               </div>
-              <p className="text-xs text-gray-500 mt-1">Members without team</p>
+              <p className="text-xs text-text-secondary mt-1">Members without team</p>
             </div>
           )}
 
           {/* No Teams Message */}
           {(!teams || teams.length === 0) && (
-            <div className="text-center text-gray-500 py-8">
+            <div className="text-center text-text-secondary py-8">
               <Users className="w-12 h-12 mx-auto mb-2 text-gray-300" />
               <p className="text-sm">No teams created yet</p>
-              <p className="text-xs text-gray-400">Create your first team to get started</p>
+              <p className="text-xs text-text-muted">Create your first team to get started</p>
             </div>
           )}
         </div>

@@ -237,7 +237,7 @@ const ReportPage = () => {
       <div className="fixed inset-0 z-40 bg-black/20 flex items-center justify-center">
         <div className="bg-white rounded-lg shadow-xl p-6 max-w-md w-full mx-4">
           <div className="text-center">
-            <p className="text-gray-600">No member selected</p>
+            <p className="text-text-secondary">No member selected</p>
             <button
               onClick={handleClose}
               className="mt-4 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
@@ -256,17 +256,17 @@ const ReportPage = () => {
     <>
       <div className="fixed inset-0 z-40 bg-black/20" onClick={handleClose} aria-hidden="true" />
       <div
-        className="fixed z-50 w-[980px] max-w-[95vw] max-h-[85vh] flex rounded-lg bg-white shadow-xl border border-gray-200"
+        className="fixed z-50 w-[980px] max-w-[95vw] max-h-[85vh] flex rounded-lg bg-white shadow-xl border border-border-light"
         style={{ left: "50%", top: "50%", transform: "translate(-50%, -50%)" }}
         onClick={(e) => e.stopPropagation()}
       >
         {/* Left Sidebar - Date and Event List */}
-        <div className="w-64 border-r border-gray-200 bg-gray-50 flex flex-col">
+        <div className="w-64 border-r border-border-light bg-bg-secondary flex flex-col">
           <div className="flex-1 overflow-y-auto">
             {loading ? (
-              <div className="p-4 text-center text-gray-500 text-sm">Loading...</div>
+              <div className="p-4 text-center text-text-secondary text-sm">Loading...</div>
             ) : dateList.length === 0 ? (
-              <div className="p-4 text-center text-gray-500 text-sm">
+              <div className="p-4 text-center text-text-secondary text-sm">
                 No reports available
               </div>
             ) : (
@@ -288,15 +288,15 @@ const ReportPage = () => {
                             className={`w-full text-left px-3 py-2 transition-colors ${
                               isSelected
                                 ? "bg-blue-50 text-blue-900 font-medium"
-                                : "text-gray-600 hover:bg-gray-100"
+                                : "text-text-secondary hover:bg-bg-hover"
                             }`}
                           >
                             {/* Line 1: Day, Date: Start Time - End Time */}
-                            <div className="text-xs text-gray-600">
+                            <div className="text-xs text-text-secondary">
                               {format(event.start, "EEEE, d MMM yyyy")}: {format(event.start, "HH:mm")} - {format(event.end, "HH:mm")}
                             </div>
                             {/* Line 2: Event Title */}
-                            <div className={`text-sm mt-0.5 ${isSelected ? "font-semibold text-blue-900" : "font-medium text-gray-900"}`}>
+                            <div className={`text-sm mt-0.5 ${isSelected ? "font-semibold text-blue-900" : "font-medium text-text-main"}`}>
                               {event.title}
                             </div>
                           </button>
@@ -313,16 +313,16 @@ const ReportPage = () => {
         {/* Right Content - Report Details */}
         <div className="flex-1 flex flex-col overflow-hidden">
           {/* Header */}
-          <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200">
+          <div className="flex items-center justify-between px-6 py-4 border-b border-border-light">
             <div className="flex-1">
-              <h2 className="text-lg font-semibold text-gray-900">{memberName}</h2>
-              <p className="text-sm text-gray-600 mt-0.5">
+              <h2 className="text-lg font-semibold text-text-main">{memberName}</h2>
+              <p className="text-sm text-text-secondary mt-0.5">
                 Work reports for {formatPeriod()}
               </p>
             </div>
             <button
               onClick={handleClose}
-              className="p-1.5 rounded-lg hover:bg-gray-100 text-gray-400 hover:text-gray-600 transition-colors"
+              className="p-1.5 rounded-lg hover:bg-bg-hover text-text-muted hover:text-text-secondary transition-colors"
             >
               <X className="w-5 h-5" />
             </button>
@@ -331,21 +331,21 @@ const ReportPage = () => {
           {/* Body */}
           <div className="flex-1 overflow-y-auto p-6">
             {loading ? (
-              <div className="text-center text-gray-500">Loading report...</div>
+              <div className="text-center text-text-secondary">Loading report...</div>
             ) : !selectedEvent ? (
-              <div className="text-center text-gray-500">
+              <div className="text-center text-text-secondary">
                 <FileText className="w-12 h-12 text-gray-300 mx-auto mb-3" />
                 <p>Select an event to view report</p>
               </div>
             ) : (
               <div>
                 {/* Event Title */}
-                <h3 className="text-xl font-semibold text-gray-900 mb-3">
+                <h3 className="text-xl font-semibold text-text-main mb-3">
                   {selectedEvent.title}
                 </h3>
 
                 {/* Date and Time Range */}
-                <div className="flex items-center gap-2 text-sm text-gray-600 mb-6">
+                <div className="flex items-center gap-2 text-sm text-text-secondary mb-6">
                   <Calendar className="w-4 h-4" />
                   <span>
                     {format(selectedEvent.start, "EEEE, d MMM yyyy")} | {format(selectedEvent.start, "HH:mm")} - {format(selectedEvent.end, "HH:mm")}
@@ -354,17 +354,17 @@ const ReportPage = () => {
 
                 {/* Report Notes */}
                 <div>
-                  <label className="block text-xs font-bold text-gray-900 uppercase tracking-wide mb-3">
+                  <label className="block text-xs font-bold text-text-main uppercase tracking-wide mb-3">
                     Report Notes
                   </label>
                   {selectedEvent.reportNotes && selectedEvent.reportNotes.trim() !== "" ? (
                     <div
-                      className="prose prose-sm max-w-none text-gray-700 bg-gray-50 rounded-lg p-4 border border-gray-200"
+                      className="prose prose-sm max-w-none text-text-main bg-bg-secondary rounded-lg p-4 border border-border-light"
                       style={{ fontFamily: 'monospace', fontSize: '13px', whiteSpace: 'pre-wrap' }}
                       dangerouslySetInnerHTML={{ __html: selectedEvent.reportNotes }}
                     />
                   ) : (
-                    <div className="bg-gray-50 rounded-lg p-4 border border-gray-200 text-gray-500 italic">
+                    <div className="bg-bg-secondary rounded-lg p-4 border border-border-light text-text-secondary italic">
                       Please create report notes for this event.
                     </div>
                   )}
@@ -372,8 +372,8 @@ const ReportPage = () => {
 
                 {/* Attachments */}
                 {selectedEvent.reportAttachments && selectedEvent.reportAttachments.length > 0 && (
-                  <div className="mt-6 pt-6 border-t border-gray-200">
-                    <label className="block text-xs font-bold text-gray-900 uppercase tracking-wide mb-3">
+                  <div className="mt-6 pt-6 border-t border-border-light">
+                    <label className="block text-xs font-bold text-text-main uppercase tracking-wide mb-3">
                       Attachments
                     </label>
                     <div className="flex flex-wrap gap-2">

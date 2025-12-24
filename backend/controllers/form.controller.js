@@ -59,10 +59,50 @@ const isFormOwner = (formDocument, user = {}) => {
   return false;
 };
 
-export async function getForms(_req, res) {
+const canUserViewForm = (formDocument, user = {}) => {
+  const role = (user?.role || '').toLowerCase();
+  if (role === 'admin' || role === 'owner') return true;
+  if (!user) return false;
+
+  const scope = formDocument?.visibility?.scope || 'company';
+  const departments = formDocument?.visibility?.departments || [];
+  const teams = formDocument?.visibility?.teams || [];
+  const users = (formDocument?.visibility?.users || []).map((u) => u?.toString?.() || u);
+  const userId = user?.id?.toString?.() || user?._id?.toString?.() || '';
+  const userDept = user?.department || user?.departmentId || '';
+  const userTeams = Array.isArray(user?.teamNames) ? user.teamNames : [];
+
+  if (scope === 'company') return true;
+
+  if (scope === 'users') {
+    return userId && users.includes(userId);
+  }
+
+  if (scope === 'department') {
+    if (!userDept) return false;
+    return departments.some((d) => d && userDept && d.toString() === userDept.toString());
+  }
+
+  if (scope === 'team') {
+    if (!Array.isArray(userTeams) || userTeams.length === 0) return false;
+    return userTeams.some((name) => teams.includes(name));
+  }
+
+  return false;
+};
+
+export async function getForms(req, res) {
   try {
+    const user = req.user || {};
+    const role = (user?.role || '').toLowerCase();
     const forms = await Form.find().sort({ isPinned: -1, pinnedAt: -1, createdAt: -1 });
-    const enriched = await Promise.all(forms.map(resolveOwnerInfo));
+
+    const filtered =
+      role === 'admin' || role === 'owner'
+        ? forms
+        : forms.filter((form) => canUserViewForm(form, user));
+
+    const enriched = await Promise.all(filtered.map(resolveOwnerInfo));
     res.json(enriched);
   } catch (error) {
     console.error('getForms error:', error);
@@ -76,6 +116,10 @@ export async function getFormById(req, res) {
     const form = await Form.findById(formId);
     if (!form) {
       return res.status(404).json({ error: 'Form not found' });
+    }
+
+    if (!canUserViewForm(form, req.user)) {
+      return res.status(403).json({ error: 'You are not allowed to view this form' });
     }
 
     const enriched = await resolveOwnerInfo(form);
@@ -106,6 +150,17 @@ export async function createForm(req, res) {
     const isPinned = !!payload?.settings?.pinToTop;
     const pinnedAt = isPinned ? now : null;
 
+    const visibility = {
+      scope: payload?.visibility?.scope || 'company',
+      departments: Array.isArray(payload?.visibility?.departments)
+        ? payload.visibility.departments.map((d) => d?.toString?.() || d)
+        : [],
+      teams: Array.isArray(payload?.visibility?.teams) ? payload.visibility.teams : [],
+      users: Array.isArray(payload?.visibility?.users)
+        ? payload.visibility.users.filter(Boolean)
+        : [],
+    };
+
     const form = await Form.create({
       title: payload.title?.trim() || '',
       options: optionsWithIds,
@@ -116,6 +171,7 @@ export async function createForm(req, res) {
       ownerId,
       ownerEmail,
       ownerName,
+      visibility,
     });
 
     const enriched = await resolveOwnerInfo(form);

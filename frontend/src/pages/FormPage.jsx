@@ -53,17 +53,17 @@ export default function FormPage() {
   };
 
   return (
-    <div className="flex h-full bg-slate-50 font-sans">
+    <div className="flex h-full bg-bg-secondary font-sans">
       {/* Left Sidebar */}
-      <aside className="w-full md:w-1/3 lg:w-1/4 max-w-sm border-r border-slate-200 flex flex-col h-full bg-white">
-        <div className="p-4 border-b border-slate-200 flex justify-between items-center">
+      <aside className="w-full md:w-1/3 lg:w-1/4 max-w-sm border-r border-border-light flex flex-col h-full bg-white">
+        <div className="p-4 border-b border-border-light flex justify-between items-center">
           <div className="flex items-center gap-3">
-            <List className="w-6 h-6 text-blue-600" />
-            <h2 className="text-xl font-bold text-slate-800">All Polls</h2>
+            <List className="w-6 h-6 text-primary" />
+            <h2 className="text-xl font-bold text-text-main">All Polls</h2>
           </div>
           <button
             onClick={() => setShowModal(true)}
-            className="inline-flex items-center justify-center w-10 h-10 rounded-full bg-blue-600 text-white hover:bg-blue-700 transition-all shadow-md hover:shadow-lg transform hover:-translate-y-0.5"
+            className="inline-flex items-center justify-center w-10 h-10 rounded-full bg-primary text-white hover:bg-primary-hover transition-all shadow-md hover:shadow-lg transform hover:-translate-y-0.5"
             title="Create New Poll"
           >
             <PlusCircle className="w-6 h-6" />
@@ -88,10 +88,10 @@ export default function FormPage() {
             users={employees}
           />
         ) : (
-          <div className="flex h-full items-center justify-center text-center text-slate-500">
+          <div className="flex h-full items-center justify-center text-center text-text-secondary">
             <div className="flex flex-col items-center gap-4">
-                <MessageSquare className="w-16 h-16 text-slate-300" />
-                <h3 className="text-lg font-semibold text-slate-700">Select a poll</h3>
+                <MessageSquare className="w-16 h-16 text-text-muted" />
+                <h3 className="text-lg font-semibold text-text-main">Select a poll</h3>
                 <p className="max-w-xs">Choose a poll from the list on the left to see its details and vote.</p>
             </div>
           </div>

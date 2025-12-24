@@ -1,8 +1,9 @@
 import React, { useEffect, useRef, useState } from 'react'
-import { User, Mail, Phone, Building, Briefcase, Edit3, Save, X, Camera, Trash2 } from 'lucide-react'
+import { User, Mail, Phone, Building, Briefcase, Edit3, Save, X, Camera, Trash2, Sparkles } from 'lucide-react'
 import useUserStore from '../../stores/useUserStore'
 import { DEPARTMENTS } from '../../constants/departments'
 import { ROLES } from '../../constants/roles'
+import { isAdmin } from '../../utils/roleUtils'
 
 const MAX_AVATAR_SIZE = 5 * 1024 * 1024 // 5MB
 
@@ -93,26 +94,27 @@ const ProfilePage = () => {
   }
 
   return (
-    <div className="h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100 overflow-hidden">
-      <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-2">
-        {/* Profile Header */}
-        <div className="relative bg-white rounded-2xl shadow-2xl overflow-hidden mb-4">
-          {/* Background Pattern */}
-          <div className="absolute inset-0 bg-gradient-to-br from-blue-600 via-purple-600 to-indigo-700">
-            <div className="absolute inset-0 opacity-20" style={{
-              backgroundImage: `url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23ffffff' fill-opacity='0.05'%3E%3Ccircle cx='30' cy='30' r='2'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E")`
+    <div className="min-h-screen bg-bg-secondary">
+      <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {/* Profile Header Card */}
+        <div className="relative bg-white rounded-3xl shadow-2xl overflow-hidden mb-6 border-2 border-white/50">
+          {/* Primary Background */}
+          <div className="absolute inset-0 bg-primary">
+            <div className="absolute inset-0 bg-gradient-to-t from-black/10 to-transparent"></div>
+            <div className="absolute inset-0 opacity-30" style={{
+              backgroundImage: `url("data:image/svg+xml,%3Csvg width='100' height='100' viewBox='0 0 100 100' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='%23ffffff' fill-opacity='0.1'%3E%3Ccircle cx='50' cy='50' r='3'/%3E%3C/g%3E%3C/svg%3E")`
             }}></div>
           </div>
           
-          <div className="relative px-6 py-6">
-            <div className="flex flex-col lg:flex-row items-center lg:items-end space-y-4 lg:space-y-0 lg:space-x-6">
+          <div className="relative px-8 py-8">
+            <div className="flex flex-col lg:flex-row items-center lg:items-end space-y-6 lg:space-y-0 lg:space-x-8">
               {/* Avatar Section */}
               <div className="flex flex-col items-center">
                 <div className="relative group">
                   <button
                     type="button"
                     onClick={handleAvatarClick}
-                    className={`relative w-20 h-20 rounded-full overflow-hidden shadow-2xl border-4 border-white/20 backdrop-blur-sm flex items-center justify-center bg-white/10 transition-all duration-300 ${isEditing ? 'cursor-pointer hover:scale-105 hover:shadow-3xl' : 'cursor-default'}`}
+                    className={`relative w-28 h-28 rounded-full overflow-hidden shadow-2xl border-4 border-white transition-all duration-300 ${isEditing ? 'cursor-pointer hover:scale-110 hover:shadow-3xl ring-4 ring-white/50' : 'cursor-default'}`}
                     disabled={!isEditing}
                   >
                     {avatarPreview ? (
@@ -122,22 +124,23 @@ const ProfilePage = () => {
                         className="w-full h-full object-cover"
                       />
                     ) : (
-                      <User className="w-10 h-10 text-white/70" />
+                      <div className="w-full h-full bg-primary-light flex items-center justify-center">
+                        <User className="w-14 h-14 text-primary" />
+                      </div>
                     )}
                     {isEditing && (
-                      <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-all duration-300 flex flex-col items-center justify-center text-white">
-                        <Camera className="w-6 h-6 mb-1" />
-                        <span className="text-xs font-semibold">Change</span>
+                      <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-all duration-300 flex flex-col items-center justify-center text-white">
+                        <Camera className="w-7 h-7 mb-1" />
+                        <span className="text-xs font-semibold">Change Photo</span>
                       </div>
                     )}
                   </button>
                   
-                  {/* Remove button - positioned at top right corner of avatar */}
                   {isEditing && avatarPreview && (
                     <button
                       type="button"
                       onClick={handleAvatarRemove}
-                      className="absolute -top-2 -right-2 w-8 h-8 bg-red-500 hover:bg-red-600 text-white rounded-full shadow-lg flex items-center justify-center transition-all duration-200 hover:scale-110"
+                      className="absolute -top-1 -right-1 w-9 h-9 bg-red-500 hover:bg-red-600 text-white rounded-full shadow-xl flex items-center justify-center transition-all duration-200 hover:scale-110 ring-2 ring-white"
                       title="Remove avatar"
                     >
                       <Trash2 className="w-4 h-4" />
@@ -153,7 +156,7 @@ const ProfilePage = () => {
                   onChange={handleAvatarChange}
                 />
                 {avatarError && (
-                  <div className="mt-3 px-3 py-2 bg-red-500/20 text-red-100 rounded-lg text-sm backdrop-blur-sm">
+                  <div className="mt-3 px-4 py-2 bg-red-500 text-white rounded-xl text-sm shadow-lg backdrop-blur-sm">
                     {avatarError}
                   </div>
                 )}
@@ -161,15 +164,18 @@ const ProfilePage = () => {
 
               {/* User Info */}
               <div className="text-center lg:text-left flex-1">
-                <h1 className="text-2xl font-bold text-white mb-1 drop-shadow-lg">
-                  {user?.name || 'User Name'}
-                </h1>
-                <div className="flex flex-col sm:flex-row sm:items-center sm:space-x-4 space-y-1 sm:space-y-0 mb-2">
-                  <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-white/20 text-white backdrop-blur-sm">
+                <div className="flex items-center justify-center lg:justify-start gap-2 mb-2">
+                  <h1 className="text-4xl font-bold text-white drop-shadow-lg">
+                    {user?.name || 'User Name'}
+                  </h1>
+                  <Sparkles className="w-6 h-6 text-white/80 animate-pulse" />
+                </div>
+                <div className="flex flex-wrap items-center justify-center lg:justify-start gap-3 mb-4">
+                  <span className="inline-flex items-center px-4 py-2 rounded-full text-sm font-semibold bg-white/30 text-white backdrop-blur-md shadow-lg border border-white/20">
                     <Briefcase className="w-4 h-4 mr-2" />
                     {user?.role?.charAt(0).toUpperCase() + user?.role?.slice(1) || 'Role'}
                   </span>
-                  <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-white/20 text-white backdrop-blur-sm">
+                  <span className="inline-flex items-center px-4 py-2 rounded-full text-sm font-semibold bg-white/30 text-white backdrop-blur-md shadow-lg border border-white/20">
                     <Building className="w-4 h-4 mr-2" />
                     {user?.department || 'Department'}
                   </span>
@@ -179,33 +185,33 @@ const ProfilePage = () => {
                     name="slogan"
                     value={formData.slogan}
                     onChange={handleInputChange}
-                    className="w-full px-4 py-3 border-2 border-white/30 rounded-xl focus:outline-none focus:ring-4 focus:ring-white/20 focus:border-white/50 transition-all duration-200 bg-white/10 backdrop-blur-sm text-blue-100 placeholder-blue-200 resize-none"
+                    className="w-full px-5 py-4 border-2 border-white/40 rounded-2xl focus:outline-none focus:ring-4 focus:ring-white/30 focus:border-white/60 transition-all duration-200 bg-white/20 backdrop-blur-md text-white placeholder-white/70 resize-none shadow-lg"
                     placeholder="Write your professional slogan or bio..."
                     rows="2"
                   />
                 ) : (
-                <p className="text-blue-100 text-sm leading-relaxed max-w-2xl">
-                  {formData.slogan}
-                </p>
+                  <p className="text-white/95 text-base leading-relaxed max-w-2xl font-medium drop-shadow-md">
+                    {formData.slogan}
+                  </p>
                 )}
               </div>
             </div>
           </div>
         </div>
 
-        {/* Profile Content */}
-        <div className="bg-white rounded-2xl shadow-xl overflow-hidden">
+        {/* Profile Content Card */}
+        <div className="bg-white rounded-3xl shadow-2xl overflow-hidden border-2 border-white/50">
           {/* Action Bar */}
-          <div className="bg-gradient-to-r from-slate-50 to-gray-50 px-6 py-3 border-b border-gray-100">
+          <div className="bg-primary px-8 py-5">
             <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center space-y-4 sm:space-y-0">
               <div>
-                <h2 className="text-lg font-bold text-gray-900">Personal Information</h2>
-                <p className="text-gray-600 text-xs">Manage your profile details and preferences</p>
+                <h2 className="text-2xl font-bold text-white mb-1">Personal Information</h2>
+                <p className="text-white/90 text-sm">Manage your profile details and preferences</p>
               </div>
               {!isEditing ? (
                 <button
                   onClick={() => setIsEditing(true)}
-                  className="inline-flex items-center px-6 py-3 bg-gradient-to-r from-blue-600 to-blue-700 text-white rounded-xl hover:from-blue-700 hover:to-blue-800 transition-all duration-200 shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 font-medium"
+                  className="inline-flex items-center px-6 py-3 bg-white text-primary rounded-xl hover:bg-primary-50 transition-all duration-200 shadow-xl hover:shadow-2xl transform hover:-translate-y-1 font-semibold hover:scale-105"
                 >
                   <Edit3 className="w-5 h-5 mr-2" />
                   Edit Profile
@@ -214,7 +220,7 @@ const ProfilePage = () => {
                 <div className="flex space-x-3">
                   <button
                     onClick={handleCancel}
-                    className="inline-flex items-center px-6 py-3 bg-gray-100 text-gray-700 rounded-xl hover:bg-gray-200 transition-all duration-200 font-medium border border-gray-200"
+                    className="inline-flex items-center px-6 py-3 bg-white/20 backdrop-blur-md text-white rounded-xl hover:bg-white/30 transition-all duration-200 font-semibold border-2 border-white/30"
                   >
                     <X className="w-5 h-5 mr-2" />
                     Cancel
@@ -222,7 +228,7 @@ const ProfilePage = () => {
                   <button
                     onClick={handleSave}
                     disabled={loading}
-                    className="inline-flex items-center px-6 py-3 bg-gradient-to-r from-green-600 to-green-700 text-white rounded-xl hover:from-green-700 hover:to-green-800 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 font-medium"
+                    className="inline-flex items-center px-6 py-3 bg-white text-primary rounded-xl hover:bg-primary-light transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed shadow-xl hover:shadow-2xl transform hover:-translate-y-1 font-semibold hover:scale-105"
                   >
                     <Save className="w-5 h-5 mr-2" />
                     {loading ? 'Saving...' : 'Save Changes'}
@@ -233,15 +239,15 @@ const ProfilePage = () => {
           </div>
 
           {/* Profile Fields */}
-          <div className="p-4">
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+          <div className="p-8">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
               {/* Left Column - Personal Info */}
-              <div className="space-y-4">
+              <div className="space-y-6">
                 {/* Name */}
                 <div className="group">
-                  <label className="flex items-center text-sm font-semibold text-gray-700 mb-2">
-                    <div className="w-8 h-8 bg-blue-100 rounded-lg flex items-center justify-center mr-3 group-hover:bg-blue-200 transition-colors">
-                      <User className="w-4 h-4 text-blue-600" />
+                  <label className="flex items-center text-base font-bold text-text-main mb-3">
+                    <div className="w-10 h-10 bg-primary rounded-xl flex items-center justify-center mr-3 group-hover:bg-primary-hover transition-all duration-200 shadow-lg">
+                      <User className="w-5 h-5 text-white" />
                     </div>
                     Full Name
                   </label>
@@ -251,21 +257,21 @@ const ProfilePage = () => {
                       name="name"
                       value={formData.name}
                       onChange={handleInputChange}
-                      className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:outline-none focus:outline-none focus:ring-4 focus:ring-blue-500/20 transition-all duration-200 bg-gray-50 focus:bg-white"
+                      className="w-full px-5 py-4 border-2 border-border-light rounded-xl focus:outline-none focus:ring-4 focus:ring-primary/30 focus:border-primary transition-all duration-200 bg-bg-secondary focus:bg-white text-text-main font-medium shadow-sm"
                       placeholder="Enter your full name"
                     />
                   ) : (
-                    <div className="px-4 py-3 bg-gradient-to-r from-gray-50 to-gray-100 rounded-xl border border-gray-200">
-                      <p className="text-gray-900 font-medium">{user?.name || 'Not provided'}</p>
+                    <div className="px-5 py-4 bg-primary-light rounded-xl border-2 border-primary/30 shadow-sm">
+                      <p className="text-text-main font-semibold text-lg">{user?.name || 'Not provided'}</p>
                     </div>
                   )}
                 </div>
 
                 {/* Email */}
                 <div className="group">
-                  <label className="flex items-center text-sm font-semibold text-gray-700 mb-2">
-                    <div className="w-8 h-8 bg-green-100 rounded-lg flex items-center justify-center mr-3 group-hover:bg-green-200 transition-colors">
-                      <Mail className="w-4 h-4 text-green-600" />
+                  <label className="flex items-center text-base font-bold text-text-main mb-3">
+                    <div className="w-10 h-10 bg-primary rounded-xl flex items-center justify-center mr-3 group-hover:bg-primary-hover transition-all duration-200 shadow-lg">
+                      <Mail className="w-5 h-5 text-white" />
                     </div>
                     Email Address
                   </label>
@@ -275,21 +281,21 @@ const ProfilePage = () => {
                       name="email"
                       value={formData.email}
                       onChange={handleInputChange}
-                      className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:outline-none focus:outline-none focus:ring-4 focus:ring-blue-500/20 transition-all duration-200 bg-gray-50 focus:bg-white"
+                      className="w-full px-5 py-4 border-2 border-border-light rounded-xl focus:outline-none focus:ring-4 focus:ring-primary/30 focus:border-primary transition-all duration-200 bg-bg-secondary focus:bg-white text-text-main font-medium shadow-sm"
                       placeholder="Enter your email address"
                     />
                   ) : (
-                    <div className="px-4 py-3 bg-gradient-to-r from-gray-50 to-gray-100 rounded-xl border border-gray-200">
-                      <p className="text-gray-900 font-medium">{user?.email || 'Not provided'}</p>
+                    <div className="px-5 py-4 bg-primary-light rounded-xl border-2 border-primary/30 shadow-sm">
+                      <p className="text-text-main font-semibold text-lg">{user?.email || 'Not provided'}</p>
                     </div>
                   )}
                 </div>
 
                 {/* Phone */}
                 <div className="group">
-                  <label className="flex items-center text-sm font-semibold text-gray-700 mb-2">
-                    <div className="w-8 h-8 bg-purple-100 rounded-lg flex items-center justify-center mr-3 group-hover:bg-purple-200 transition-colors">
-                      <Phone className="w-4 h-4 text-purple-600" />
+                  <label className="flex items-center text-base font-bold text-text-main mb-3">
+                    <div className="w-10 h-10 bg-primary rounded-xl flex items-center justify-center mr-3 group-hover:bg-primary-hover transition-all duration-200 shadow-lg">
+                      <Phone className="w-5 h-5 text-white" />
                     </div>
                     Phone Number
                   </label>
@@ -299,24 +305,24 @@ const ProfilePage = () => {
                       name="phoneNumber"
                       value={formData.phoneNumber}
                       onChange={handleInputChange}
-                      className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:outline-none focus:outline-none focus:ring-4 focus:ring-blue-500/20 transition-all duration-200 bg-gray-50 focus:bg-white"
+                      className="w-full px-5 py-4 border-2 border-border-light rounded-xl focus:outline-none focus:ring-4 focus:ring-primary/30 focus:border-primary transition-all duration-200 bg-bg-secondary focus:bg-white text-text-main font-medium shadow-sm"
                       placeholder="Enter your phone number"
                     />
                   ) : (
-                    <div className="px-4 py-3 bg-gradient-to-r from-gray-50 to-gray-100 rounded-xl border border-gray-200">
-                      <p className="text-gray-900 font-medium">{user?.phoneNumber || 'Not provided'}</p>
+                    <div className="px-5 py-4 bg-primary-light rounded-xl border-2 border-primary/30 shadow-sm">
+                      <p className="text-text-main font-semibold text-lg">{user?.phoneNumber || 'Not provided'}</p>
                     </div>
                   )}
                 </div>
               </div>
 
               {/* Right Column - Work Info */}
-              <div className="space-y-4">
+              <div className="space-y-6">
                 {/* Department */}
                 <div className="group">
-                  <label className="flex items-center text-sm font-semibold text-gray-700 mb-2">
-                    <div className="w-8 h-8 bg-orange-100 rounded-lg flex items-center justify-center mr-3 group-hover:bg-orange-200 transition-colors">
-                      <Building className="w-4 h-4 text-orange-600" />
+                  <label className="flex items-center text-base font-bold text-text-main mb-3">
+                    <div className="w-10 h-10 bg-primary rounded-xl flex items-center justify-center mr-3 group-hover:bg-primary-hover transition-all duration-200 shadow-lg">
+                      <Building className="w-5 h-5 text-white" />
                     </div>
                     Department
                   </label>
@@ -325,7 +331,7 @@ const ProfilePage = () => {
                       name="department"
                       value={formData.department}
                       onChange={handleInputChange}
-                      className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:outline-none focus:outline-none focus:ring-4 focus:ring-blue-500/20 transition-all duration-200 bg-gray-50 focus:bg-white"
+                      className="w-full px-5 py-4 border-2 border-border-light rounded-xl focus:outline-none focus:ring-4 focus:ring-primary/30 focus:border-primary transition-all duration-200 bg-bg-secondary focus:bg-white text-text-main font-medium shadow-sm"
                     >
                       <option value="">Select Department</option>
                       {DEPARTMENTS.map((department) => (
@@ -335,26 +341,26 @@ const ProfilePage = () => {
                       ))}
                     </select>
                   ) : (
-                    <div className="px-4 py-3 bg-gradient-to-r from-gray-50 to-gray-100 rounded-xl border border-gray-200">
-                      <p className="text-gray-900 font-medium">{user?.department || 'Not assigned'}</p>
+                    <div className="px-5 py-4 bg-primary-light rounded-xl border-2 border-primary/30 shadow-sm">
+                      <p className="text-text-main font-semibold text-lg">{user?.department || 'Not assigned'}</p>
                     </div>
                   )}
                 </div>
 
                 {/* Role */}
                 <div className="group">
-                  <label className="flex items-center text-sm font-semibold text-gray-700 mb-2">
-                    <div className="w-8 h-8 bg-indigo-100 rounded-lg flex items-center justify-center mr-3 group-hover:bg-indigo-200 transition-colors">
-                      <Briefcase className="w-4 h-4 text-indigo-600" />
+                  <label className="flex items-center text-base font-bold text-text-main mb-3">
+                    <div className="w-10 h-10 bg-primary rounded-xl flex items-center justify-center mr-3 group-hover:bg-primary-hover transition-all duration-200 shadow-lg">
+                      <Briefcase className="w-5 h-5 text-white" />
                     </div>
                     Role
                   </label>
-                  {isEditing && user?.role === 'owner' ? (
+                  {isEditing && isAdmin(user) ? (
                     <select
                       name="role"
                       value={formData.role}
                       onChange={handleInputChange}
-                      className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:outline-none focus:outline-none focus:ring-4 focus:ring-blue-500/20 transition-all duration-200 bg-gray-50 focus:bg-white"
+                      className="w-full px-5 py-4 border-2 border-border-light rounded-xl focus:outline-none focus:ring-4 focus:ring-primary/30 focus:border-primary transition-all duration-200 bg-bg-secondary focus:bg-white text-text-main font-medium shadow-sm"
                     >
                       {ROLES.map((role) => (
                         <option key={role.value} value={role.value}>
@@ -363,15 +369,14 @@ const ProfilePage = () => {
                       ))}
                     </select>
                   ) : (
-                    <div className="px-4 py-3 bg-gradient-to-r from-gray-50 to-gray-100 rounded-xl border border-gray-200">
-                      <p className="text-gray-900 font-medium capitalize">{user?.role || 'Not assigned'}</p>
+                    <div className="px-5 py-4 bg-primary-light rounded-xl border-2 border-primary/30 shadow-sm">
+                      <p className="text-text-main font-semibold text-lg capitalize">{user?.role || 'Not assigned'}</p>
                     </div>
                   )}
                 </div>
               </div>
             </div>
           </div>
-
         </div>
       </div>
     </div>

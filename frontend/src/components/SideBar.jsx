@@ -1,23 +1,70 @@
 import { useState } from 'react'
 import { ChevronsLeft, ChevronsRight } from 'lucide-react'
 import { Link, useLocation } from 'react-router-dom'
-import { SIDEBAR_EMPLOYEE_ITEMS, SIDEBAR_OWNER_ITEMS } from '../constants/sideBar.jsx'
+import { SIDEBAR_ADMIN_ITEMS, SIDEBAR_MANAGER_ITEMS, SIDEBAR_STAFF_ITEMS } from '../constants/sideBar.jsx'
 import useUserStore from '../stores/useUserStore'
+import { usePermissions } from '../hooks/usePermissions'
 
 const SideBar = ({ className, isCollapsed: collapsedProp, defaultCollapsed = false, onCollapsedChange }) => {
     const { pathname } = useLocation()
     const { user } = useUserStore()
+    const { canAccessModule } = usePermissions()
     const [internalCollapsed, setInternalCollapsed] = useState(defaultCollapsed)
     const isControlled = typeof collapsedProp === 'boolean'
     const isCollapsed = isControlled ? collapsedProp : internalCollapsed
 
-    const sidebarItems = user?.role === 'owner' ? SIDEBAR_OWNER_ITEMS : SIDEBAR_EMPLOYEE_ITEMS
+    // Map paths to module names for permission checking
+    const pathToModule = {
+        '/tasks': 'tasks',
+        '/forms': 'forms',
+        '/calendar': 'calendar',
+        '/messages': 'messages',
+        '/documents': 'documents',
+        '/attendance': 'attendance',
+        '/salary': 'salary',
+        '/employees': 'employees',
+    }
+
+    // Get sidebar items based on role and filter by permissions
+    const getSidebarItems = () => {
+        const role = user?.role;
+        let items = [];
+        // Support legacy roles for backward compatibility
+        if (role === 'admin' || role === 'owner') {
+            items = SIDEBAR_ADMIN_ITEMS;
+        } else if (role === 'manager') {
+            items = SIDEBAR_MANAGER_ITEMS;
+        } else {
+            // Default to staff (includes 'staff' and legacy 'employee')
+            items = SIDEBAR_STAFF_ITEMS;
+        }
+
+        // Filter items based on permissions (admin always has access)
+        if (role !== 'admin' && role !== 'owner') {
+            return items.filter(item => {
+                // Home and Dashboard are always accessible
+                if (item.path === '/' || item.path === '/dashboard') return true;
+                
+                // Check module permission
+                const module = pathToModule[item.path];
+                if (module) {
+                    return canAccessModule(module);
+                }
+                return true; // Allow other items by default
+            });
+        }
+
+        return items;
+    };
+    const sidebarItems = getSidebarItems()
 
     const isActiveItem = (itemPath) => {
         if (itemPath === '/') {
             return pathname === '/'
         }
-        return pathname.startsWith(itemPath)
+        const parts = itemPath.split('/').filter(Boolean)
+        const root = parts.length ? `/${parts[0]}` : itemPath
+        return pathname === itemPath || pathname.startsWith(root)
     }
 
     const toggleSidebar = () => {
@@ -29,9 +76,9 @@ const SideBar = ({ className, isCollapsed: collapsedProp, defaultCollapsed = fal
     }
 
     return (
-        <div className={`fixed top-20 left-0 z-20 bg-white ${isCollapsed ? 'w-16' : 'w-64'} h-[calc(100vh-80px)] flex flex-col border-r border-gray-200 transition-all duration-300 ease-in-out ${className}`}>
+        <div className={`${isCollapsed ? 'w-16' : 'w-64'} h-full bg-white border-r border-border-light transition-all duration-300 ease-in-out ${className}`}>
             <div className={`flex-1 ${isCollapsed ? 'px-2 py-3' : 'p-4'}`}>
-                <div className="space-y-3">
+                <div className="space-y-2">
                     {
                         sidebarItems.map(item => {
                             const isActive = isActiveItem(item.path)
@@ -51,7 +98,7 @@ const SideBar = ({ className, isCollapsed: collapsedProp, defaultCollapsed = fal
                                 'transition-colors',
                                 'duration-300',
                                 'ease-in-out',
-                                isActive ? 'text-white' : 'text-gray-700'
+                                isActive ? 'text-white' : 'text-text-main'
                             ].join(' ').trim()
 
                             const indicatorClasses = isCollapsed
@@ -74,16 +121,16 @@ const SideBar = ({ className, isCollapsed: collapsedProp, defaultCollapsed = fal
                                     <Link
                                         to={item.path}
                                         className={`
-                                            flex items-center h-12 ${isCollapsed ? 'justify-center w-12 mx-auto' : 'w-full px-4'} rounded-xl transition-all duration-300 ease-in-out
+                                            flex items-center h-12 ${isCollapsed ? 'justify-center w-12 mx-auto' : 'w-full px-3'} rounded-xl transition-all duration-300 ease-in-out
                                             ${isActive
-                                                ? 'bg-blue-600 text-white shadow-lg shadow-blue-200'
-                                                : 'text-gray-600 hover:bg-gray-50 hover:text-gray-800 hover:shadow-sm'
+                                                ? 'bg-primary text-white shadow-soft'
+                                                : 'text-text-main hover:bg-bg-hover'
                                             }
                                         `}
                                     >
                                         <div className={`
                                             flex-shrink-0 transition-colors duration-200
-                                            ${isActive ? 'text-white' : 'text-gray-500 group-hover:text-gray-700'}
+                                            ${isActive ? 'text-white' : 'text-text-secondary'}
                                         `}>
                                             {item.icon}
                                         </div>
@@ -95,9 +142,9 @@ const SideBar = ({ className, isCollapsed: collapsedProp, defaultCollapsed = fal
                                         </div>
                                     </Link>
                                     {isCollapsed && (
-                                        <div className="absolute top-1/2 left-full translate-x-3 -translate-y-1/2 px-3 py-2 bg-gray-900 text-white text-sm rounded-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 whitespace-nowrap z-50">
+                                        <div className="absolute top-1/2 left-full -translate-y-1/2 translate-x-3 rounded-lg bg-text-main px-3 py-2 text-sm text-white shadow-soft-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 whitespace-nowrap z-50">
                                             {item.name}
-                                            <div className="absolute left-0 top-1/2 transform -translate-y-1/2 -translate-x-1 w-2 h-2 bg-gray-900 rotate-45"></div>
+                                            <div className="absolute left-0 top-1/2 -translate-y-1/2 -translate-x-1 h-2 w-2 rotate-45 bg-text-main"></div>
                                         </div>
                                     )}
                                 </div>
@@ -107,19 +154,19 @@ const SideBar = ({ className, isCollapsed: collapsedProp, defaultCollapsed = fal
                 </div>
             </div>
 
-            <div className={`flex-shrink-0 ${isCollapsed ? 'px-2 py-3' : 'p-4'} border-t border-gray-100 bg-white`}>
+            <div className={`flex-shrink-0 ${isCollapsed ? 'px-2 py-3' : 'p-4'}`}>
                 <button
                     onClick={toggleSidebar}
                     className={`
-                        flex items-center ${isCollapsed ? 'justify-center h-12 w-12 mx-auto' : 'gap-3 h-12 px-4 w-full justify-center'} rounded-xl text-gray-600 hover:bg-gray-50 hover:text-gray-800 transition-all duration-300 ease-in-out group
+                        flex items-center ${isCollapsed ? 'justify-center h-11 w-11 mx-auto' : 'gap-3 h-11 px-4 w-full justify-center'} rounded-2xl bg-bg-secondary text-text-secondary hover:bg-bg-hover hover:text-primary transition-all duration-300 ease-in-out group focus:outline-none focus:ring-2 focus:ring-primary
                     `}
                     title={isCollapsed ? 'Expand Sidebar' : 'Collapse Sidebar'}
                 >
                     {isCollapsed ? (
-                        <ChevronsRight className='w-5 h-5 transition-transform duration-300 ease-in-out group-hover:translate-x-1' />
+                        <ChevronsRight className='h-5 w-5 transition-transform duration-300 ease-in-out group-hover:translate-x-1' />
                     ) : (
                         <>
-                            <ChevronsLeft className='w-5 h-5 transition-transform duration-300 ease-in-out group-hover:-translate-x-1' />
+                            <ChevronsLeft className='h-5 w-5 transition-transform duration-300 ease-in-out group-hover:-translate-x-1' />
                             <span className="font-medium transition-opacity duration-300 ease-in-out">Hide Sidebar</span>
                         </>
                     )}

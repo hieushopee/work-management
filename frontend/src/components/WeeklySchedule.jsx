@@ -15,8 +15,8 @@ import ReportNotesModal from "./ReportNotesModal";
 import EventModal from "./EventModal"
 import { ChevronLeft, ChevronRight, Calendar as CalendarIcon, Grid3X3, List, Clock, CalendarDays, ChevronDown } from "lucide-react"
 
-const HOUR_HEIGHT_REM = 1.5
-const STEP_HOURS = 2
+const HOUR_HEIGHT_REM = 3
+const STEP_HOURS = 0.25 // 15-minute increments
 const SLOT_HEIGHT_REM = HOUR_HEIGHT_REM * STEP_HOURS
 
 
@@ -54,9 +54,19 @@ const WeeklySchedule = ({
   useEffect(() => {
     previousViewModeRef.current = viewMode
   }, [viewMode])
-  // Nhãn thời gian: 0,2,4,...,22
-  const timeLabels = Array.from({ length: 24 / STEP_HOURS }, (_, i) => i * STEP_HOURS)
-  const slotStarts = timeLabels
+  const formatHourLabel = (value) => {
+    const totalMinutes = Math.round(value * 60);
+    if (totalMinutes === 0) return '';
+    const hour = Math.floor(totalMinutes / 60);
+    const minute = totalMinutes % 60;
+    if (minute !== 0) return '';
+    const period = hour >= 12 ? 'PM' : 'AM';
+    const display = hour === 12 ? 12 : hour % 12;
+    return `${display} ${period}`;
+  };
+
+  // Time grid in 15-minute steps; labels only on full hours
+  const slotStarts = Array.from({ length: Math.round(24 / STEP_HOURS) }, (_, i) => i * STEP_HOURS)
 
   const normalizeColKey = (key) =>
     key instanceof Date ? key.toISOString() : String(key)
@@ -66,6 +76,10 @@ const WeeklySchedule = ({
   const [modalEvent, setModalEvent] = useState(null)
   const [modalPos, setModalPos] = useState(null)
   const [nowPos, setNowPos] = useState(null)
+  const showNowLine = useMemo(
+    () => nowPos !== null && isToday(selectedDate) && viewMode !== 'month',
+    [nowPos, selectedDate, viewMode]
+  )
 
   const isMultiMember = selectedMembers.length > 1
   const currentUserId = currentUser?.id != null ? String(currentUser.id) : null
@@ -278,6 +292,13 @@ const WeeklySchedule = ({
     }
   }, [events, modalEvent?.id])
 
+  const toTimeParts = (value) => {
+    const totalMinutes = Math.round(value * 60);
+    const hour = Math.floor(totalMinutes / 60);
+    const minute = totalMinutes % 60;
+    return { hour, minute };
+  };
+
   // Bắt đầu kéo
   const handleMouseDown = (colKey, hourStart) => {
     if (isMultiMember) return
@@ -317,11 +338,14 @@ const WeeklySchedule = ({
     const startHour = Math.min(dragStart.hour, dragEnd.hour)
     const endHour = Math.max(dragStart.hour, dragEnd.hour) + STEP_HOURS
 
+    const { hour: startH, minute: startM } = toTimeParts(startHour)
+    const { hour: endH, minute: endM } = toTimeParts(endHour)
+
     const start = new Date(colKey)
-    start.setHours(startHour, 0, 0, 0)
+    start.setHours(startH, startM, 0, 0)
 
     const end = new Date(colKey)
-    end.setHours(endHour, 0, 0, 0)
+    end.setHours(endH, endM, 0, 0)
 
     const assignedTo = selectedMembers.length ? [selectedMembers[0]] : []
     if (assignedTo.length) {
@@ -397,7 +421,7 @@ const WeeklySchedule = ({
 
       return (
         <>
-          <div className="w-16 text-center font-medium py-3 border-r border-gray-200 bg-gray-50 text-gray-600">
+          <div className="w-16 text-center font-medium py-3 border-r border-border-light bg-bg-secondary text-text-secondary">
             <Clock className="w-4 h-4 mx-auto mb-1" />
             <div className="text-xs">Time</div>
           </div>
@@ -417,14 +441,14 @@ const WeeklySchedule = ({
             return (
               <div
                 key={i}
-                className={`flex-1 text-center py-3 border-r border-gray-200 cursor-pointer transition-colors ${
-                  today ? "bg-blue-50/50 hover:bg-blue-50/60" : highlightEvent ? "bg-blue-50/30" : "hover:bg-gray-50"
+                className={`flex-1 text-center py-3 border-r border-border-light cursor-pointer transition-colors ${
+                  today ? "bg-primary-light/50 hover:bg-primary-light/60" : highlightEvent ? "bg-primary-light/30" : "hover:bg-bg-secondary"
                 }`}
                 onClick={() => updateSelectedDate(day, { fromUserClick: true })}
               >
                 <div
                   className={`text-xs font-medium mb-1 ${
-                    today ? "text-blue-600 font-semibold" : isThisMonth ? "text-gray-500" : "text-gray-400"
+                    today ? "text-primary font-semibold" : isThisMonth ? "text-text-secondary" : "text-text-muted"
                   }`}
                 >
                   {dow}
@@ -433,23 +457,23 @@ const WeeklySchedule = ({
                   <div
                     className={`w-8 h-8 rounded-full aspect-square flex items-center justify-center text-sm font-medium transition-all ${
                       today
-                        ? "bg-blue-600 text-white font-semibold shadow-sm hover:!bg-blue-600 hover:!text-white"
+                        ? "bg-primary text-white font-semibold shadow-sm hover:!bg-primary hover:!text-white"
                         : highlightEvent
-                        ? "bg-blue-50 text-blue-600 hover:bg-blue-100"
+                        ? "bg-primary-light text-primary hover:bg-primary-light"
                         : !shouldHighlightEvents && selected
-                        ? "bg-blue-50 text-blue-600 font-semibold hover:bg-blue-100"
-                        : "hover:bg-gray-100 text-gray-900"
+                        ? "bg-primary-light text-primary font-semibold hover:bg-primary-light"
+                        : "hover:bg-bg-hover text-text-main"
                     }`}
-                    style={today ? { backgroundColor: '#2563EB', color: '#ffffff' } : undefined}
+                    style={today ? { backgroundColor: '#FF8C00', color: '#ffffff' } : undefined}
                     onMouseEnter={(e) => {
                       if (today) {
-                        e.currentTarget.style.backgroundColor = '#2563EB';
+                        e.currentTarget.style.backgroundColor = '#FF8C00';
                         e.currentTarget.style.color = '#ffffff';
                       }
                     }}
                     onMouseLeave={(e) => {
                       if (today) {
-                        e.currentTarget.style.backgroundColor = '#2563EB';
+                        e.currentTarget.style.backgroundColor = '#FF8C00';
                         e.currentTarget.style.color = '#ffffff';
                       }
                     }}
@@ -466,7 +490,7 @@ const WeeklySchedule = ({
 
     return (
       <>
-        <div className="w-16 text-center font-medium py-3 border-r border-gray-200 bg-gray-50 text-gray-600">
+        <div className="w-16 text-center font-medium py-3 border-r border-border-light bg-bg-secondary text-text-secondary">
           <Clock className="w-4 h-4 mx-auto mb-1" />
           <div className="text-xs">Time</div>
         </div>
@@ -477,7 +501,7 @@ const WeeklySchedule = ({
           return (
             <div
               key={`header-member-${id}-${idx}`}
-              className="flex-1 text-center font-medium py-3 border-r border-gray-200 bg-gray-50 text-gray-900"
+              className="flex-1 text-center font-medium py-3 border-r border-border-light bg-bg-secondary text-text-main"
               title={emp?.email || ""}
             >
               <div className="text-sm truncate px-2">{emp?.name || "Member"}</div>
@@ -507,24 +531,32 @@ const WeeklySchedule = ({
       colKeys = Array.from({ length: daysInMonth }, (_, i) => new Date(monthStart.getFullYear(), monthStart.getMonth(), i + 1));
     }
 
-    const totalHeightRem = timeLabels.length * SLOT_HEIGHT_REM
+    const totalHeightRem = slotStarts.length * SLOT_HEIGHT_REM
 
     return (
       <>
         {/* Cột giờ */}
         <div
-          className="w-16 border-r border-gray-200 bg-white"
+          className="w-16 border-r border-border-light bg-white"
           style={{ height: `${totalHeightRem}rem` }}
         >
-          {timeLabels.map((h) => (
-            <div
-              key={h}
-              className="border-b border-gray-100 text-xs text-gray-500 flex items-start justify-center pt-1"
-              style={{ height: `${SLOT_HEIGHT_REM}rem` }}
-            >
-              {`${h}:00`}
-            </div>
-          ))}
+          {slotStarts.map((h) => {
+            const label = formatHourLabel(h);
+            const isHourLine = Number.isInteger(h);
+            return (
+              <div
+                key={h}
+                className={`relative flex items-start justify-center border-t ${isHourLine ? "border-border-light" : "border-transparent"}`}
+                style={{ height: `${SLOT_HEIGHT_REM}rem` }}
+              >
+                {label && (
+                  <span className="absolute left-1 top-0 -translate-y-1/2 text-xs text-text-secondary bg-white px-1 pointer-events-none">
+                    {label}
+                  </span>
+                )}
+              </div>
+            );
+          })}
         </div>
 
         {/* Các cột chính */}
@@ -567,35 +599,38 @@ const WeeklySchedule = ({
           return (
             <div
               key={isMultiMember ? `member-${colKey}-${idx}` : `date-${idx}`}
-              className={`flex-1 border-r border-gray-100 relative transition-colors ${
+              className={`flex-1 border-r border-border-light relative transition-colors ${
                 isMonthView 
                   ? isCurrentDay
-                    ? 'bg-blue-50/30'
-                    : 'hover:bg-gray-50/50'
+                    ? 'bg-primary-light/30'
+                    : 'hover:bg-bg-secondary/50'
                   : isCurrentDay
-                  ? 'bg-blue-50/30'
+                  ? 'bg-primary-light/30'
                   : isSelectedDay
-                  ? 'bg-blue-50/20'
-                  : 'hover:bg-gray-50/50'
+                  ? 'bg-primary-light/20'
+                  : 'hover:bg-bg-secondary/50'
               }`}
               style={{ height: `${totalHeightRem}rem` }}
               onMouseUp={() => handleMouseUp(colKey)}
             >
-              {slotStarts.map((h) => (
-                <div
-                  key={h}
-                  className={`border-b border-gray-100 text-xs px-2 cursor-pointer hover:bg-blue-50/30 transition-colors ${
-                    isDragging && h >= dragFrom && h <= dragTo ? "bg-blue-100" : ""
-                  }`}
-                  style={{ height: `${SLOT_HEIGHT_REM}rem` }}
-                  onMouseDown={() => handleMouseDown(colKey, h)}
-                  onMouseEnter={() => {
-                    if (dragStart) {
-                      setDragEnd({ colKey, keyValue: normalizeColKey(colKey), hour: h })
-                    }
-                  }}
-                />
-              ))}
+              {slotStarts.map((h) => {
+                const isHourLine = Number.isInteger(h);
+                return (
+                  <div
+                    key={h}
+                    className={`text-xs px-2 cursor-pointer hover:bg-primary-light/30 transition-colors border-t ${
+                      isHourLine ? "border-border-light" : "border-transparent"
+                    } ${isDragging && h >= dragFrom && h <= dragTo ? "bg-primary-light" : ""}`}
+                    style={{ height: `${SLOT_HEIGHT_REM}rem` }}
+                    onMouseDown={() => handleMouseDown(colKey, h)}
+                    onMouseEnter={() => {
+                      if (dragStart) {
+                        setDragEnd({ colKey, keyValue: normalizeColKey(colKey), hour: h })
+                      }
+                    }}
+                  />
+                );
+              })}
 
               {/* Event */}
           {sortedEvents.map((evt) => {
@@ -633,13 +668,13 @@ const WeeklySchedule = ({
                 key={evt.id}
                 className={
                   isMonthView
-                    ? 'absolute left-1 right-1 rounded-md bg-blue-500/90 hover:bg-blue-500 transition-all cursor-pointer'
+                    ? 'absolute left-1 right-1 rounded-md bg-primary/90 hover:bg-primary transition-all cursor-pointer'
                     : `absolute left-1 right-1 text-xs rounded-md px-2 py-1.5 shadow-sm cursor-pointer border-l-4 transition-all hover:shadow-md flex flex-col ${
                         isShortEvent ? 'justify-center' : 'justify-start gap-0.5'
                       } ${
                         isOwner
-                          ? 'bg-blue-50 text-blue-900 border-blue-500 hover:bg-blue-100'
-                          : 'bg-gray-50 text-gray-700 border-gray-400 hover:bg-gray-100'
+                          ? 'bg-primary-light text-primary border-primary hover:bg-primary-light'
+                          : 'bg-bg-secondary text-text-main border-border-medium hover:bg-bg-hover'
                       }`
                 }
                 style={{
@@ -676,17 +711,6 @@ const WeeklySchedule = ({
               </div>
             )
           })}
-
-{/* Current time indicator */}
-{isCurrentDay && nowPos !== null && (
-  <div
-    className="absolute left-0 right-0 flex items-center pointer-events-none z-20"
-    style={{ top: `${nowPos}px` }}
-  >
-    <div className="w-2 h-2 rounded-full bg-red-500 -ml-1 shadow-sm" />
-    <div className="flex-1 h-0.5 bg-red-500" />
-  </div>
-)}
             </div>
           )
         })}
@@ -695,51 +719,51 @@ const WeeklySchedule = ({
   }
 
   return (
-    <main className="flex-1 flex flex-col relative bg-white border-l border-gray-200 h-full min-h-0">
-      {/* Google Calendar style header - Fixed height to prevent layout shift */}
-      <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200 bg-white h-[72px] min-h-[72px] max-h-[72px] flex-shrink-0">
+    <div className="flex-1 flex flex-col min-h-0 min-w-0 gap-2 p-2">
+      {/* Header, no enclosing frame */}
+        <div className="flex items-center justify-between px-5 py-2 bg-transparent text-base">
         <div className="flex items-center gap-4">
           {/* Navigation buttons */}
           <div className="flex items-center gap-1">
             <button
               onClick={goPrev}
-              className="w-8 h-8 flex items-center justify-center rounded-full text-gray-600 hover:bg-gray-100 transition-colors"
+              className="w-8 h-8 flex items-center justify-center rounded-full text-text-secondary hover:bg-bg-hover transition-colors"
             >
-              <ChevronLeft className="w-4 h-4" />
+              <ChevronLeft className="w-5 h-5" />
             </button>
             <button
               onClick={goNext}
-              className="w-8 h-8 flex items-center justify-center rounded-full text-gray-600 hover:bg-gray-100 transition-colors"
+              className="w-8 h-8 flex items-center justify-center rounded-full text-text-secondary hover:bg-bg-hover transition-colors"
             >
-              <ChevronRight className="w-4 h-4" />
+              <ChevronRight className="w-5 h-5" />
             </button>
           </div>
 
           {/* Today button */}
           <button
             onClick={goToday}
-            className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+            className="px-4 py-2 text-base font-medium text-text-main bg-white border border-border-light rounded-lg hover:bg-bg-secondary transition-colors"
           >
             Today
           </button>
 
           {/* Date display */}
-          <h2 className="text-xl font-normal text-gray-900 min-w-0">
+          <h2 className="text-2xl font-normal text-text-main min-w-0">
             {monthTitle}
           </h2>
         </div>
 
         {/* View mode buttons */}
-        <div className="flex items-center gap-1 bg-gray-100 rounded-lg p-1">
+        <div className="flex items-center gap-1 bg-bg-hover rounded-lg p-1">
           <button
             onClick={() => handleViewModeChange('month')}
             disabled={isMultiMember}
-            className={`px-3 py-1.5 text-sm font-medium rounded-md transition-colors ${
+            className={`px-3 py-1.5 text-base font-medium rounded-md transition-colors ${
               viewMode === 'month'
-                ? 'bg-white text-gray-900 shadow-sm'
+                ? 'bg-white text-text-main shadow-sm'
                 : isMultiMember
-                  ? 'text-gray-400 cursor-not-allowed'
-                  : 'text-gray-600 hover:bg-white hover:text-gray-900'
+                  ? 'text-text-muted cursor-not-allowed'
+                  : 'text-text-secondary hover:bg-white hover:text-text-main'
             }`}
             title={isMultiMember ? "Month view not available with multiple members" : "Month view"}
           >
@@ -748,12 +772,12 @@ const WeeklySchedule = ({
           <button
             onClick={() => handleViewModeChange('week')}
             disabled={isMultiMember}
-            className={`px-3 py-1.5 text-sm font-medium rounded-md transition-colors ${
+            className={`px-3 py-1.5 text-base font-medium rounded-md transition-colors ${
               viewMode === 'week'
-                ? 'bg-white text-gray-900 shadow-sm'
+                ? 'bg-white text-text-main shadow-sm'
                 : isMultiMember
-                  ? 'text-gray-400 cursor-not-allowed'
-                  : 'text-gray-600 hover:bg-white hover:text-gray-900'
+                  ? 'text-text-muted cursor-not-allowed'
+                  : 'text-text-secondary hover:bg-white hover:text-text-main'
             }`}
             title={isMultiMember ? "Week view not available with multiple members" : "Week view"}
           >
@@ -762,12 +786,12 @@ const WeeklySchedule = ({
           <button
             onClick={() => handleViewModeChange('day')}
             disabled={selectedMembers.length === 0 || isSelfOnlySelected}
-            className={`px-3 py-1.5 text-sm font-medium rounded-md transition-colors ${
+            className={`px-3 py-1.5 text-base font-medium rounded-md transition-colors ${
               viewMode === 'day'
-                ? 'bg-white text-gray-900 shadow-sm'
+                ? 'bg-white text-text-main shadow-sm'
                 : (selectedMembers.length === 0 || isSelfOnlySelected)
-                  ? 'text-gray-400 cursor-not-allowed'
-                  : 'text-gray-600 hover:bg-white hover:text-gray-900'
+                  ? 'text-text-muted cursor-not-allowed'
+                  : 'text-text-secondary hover:bg-white hover:text-text-main'
             }`}
             title={
               selectedMembers.length === 0
@@ -783,35 +807,50 @@ const WeeklySchedule = ({
       </div>
 
       {/* Calendar grid - Fixed structure to prevent layout shift */}
-      <div className="flex-1 flex flex-col overflow-hidden min-h-0">
+      <div className="flex-1 flex flex-col overflow-hidden min-h-0 bg-white border border-border-light rounded-2xl shadow-sm mt-2">
         {/* Fixed header */}
-        <div className="flex border-b border-gray-200 bg-white flex-shrink-0">
+        <div className="flex border-b border-border-light bg-white flex-shrink-0">
           {renderHeader()}
         </div>
         {/* Scrollable calendar content */}
         <div
           ref={calendarRef}
           className="flex-1 flex overflow-y-auto overflow-x-hidden min-h-0 relative bg-white no-scrollbar"
+          style={{
+            height: "calc(100vh - 240px)",
+            maxHeight: "calc(100vh - 240px)",
+          }}
         >
           {renderColumns()}
+          {showNowLine && (
+            <div
+              className="absolute left-16 right-0 pointer-events-none z-30"
+              style={{ top: `${nowPos}px` }}
+            >
+              <div className="relative">
+                <div className="absolute -left-1 w-2 h-2 rounded-full bg-red-500 shadow-sm" />
+                <div className="h-0.5 bg-red-500" />
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Work Hours Summary - Fixed at bottom, doesn't affect calendar scroll */}
-        {selectedMembers && selectedMembers.length > 0 && (
-          <div className="p-4 border-t border-gray-200 bg-gray-50 w-full flex-shrink-0">
+        {false && selectedMembers && selectedMembers.length > 0 && (
+          <div className="p-4 border-t border-border-light bg-bg-secondary w-full flex-shrink-0">
             <div className="flex items-center justify-between mb-2">
-              <h3 className="text-sm font-semibold text-gray-900">Work Hours Statistics</h3>
+              <h3 className="text-sm font-semibold text-text-main">Work Hours Statistics</h3>
               <div className="relative">
                 <select
                   value={periodMode}
                   onChange={(e) => setPeriodMode(e.target.value)}
-                  className="appearance-none bg-white border border-gray-300 rounded-md px-3 py-1.5 pr-8 text-sm font-medium text-gray-700 hover:border-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 cursor-pointer"
+                  className="appearance-none bg-white border border-border-light rounded-md px-3 py-1.5 pr-8 text-sm font-medium text-text-main hover:border-border-medium focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary cursor-pointer"
                 >
                   <option value="day">Day</option>
                   <option value="week">Week</option>
                   <option value="month">Month</option>
                 </select>
-                <ChevronDown className="absolute right-2 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-500 pointer-events-none" />
+                <ChevronDown className="absolute right-2 top-1/2 transform -translate-y-1/2 w-4 h-4 text-text-secondary pointer-events-none" />
               </div>
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
@@ -867,12 +906,12 @@ const WeeklySchedule = ({
                       setReportMember(displayName);
                       setShowReportModal(true);
                     }}
-                    className="flex items-center justify-between rounded-lg border border-gray-200 bg-white px-3 py-2 shadow-sm cursor-pointer hover:border-blue-300 hover:shadow-md transition-all"
+                    className="flex items-center justify-between rounded-lg border border-border-light bg-white px-3 py-2 shadow-sm cursor-pointer hover:border-primary/30 hover:shadow-md transition-all"
                   >
-                    <span className="text-sm font-medium text-gray-900 truncate pr-2" title={displayName}>
+                    <span className="text-sm font-medium text-text-main truncate pr-2" title={displayName}>
                       {displayName.length > 22 ? `${displayName.slice(0, 22)}...` : displayName}
                     </span>
-                    <span className="text-sm font-semibold text-blue-600 whitespace-nowrap">
+                    <span className="text-sm font-semibold text-primary whitespace-nowrap">
                       {formatHours(totalHours)}
                     </span>
                   </div>
@@ -914,7 +953,7 @@ const WeeklySchedule = ({
           refreshEvents={refreshEvents}
         />
       )}
-    </main>
+    </div>
   )
 }
 

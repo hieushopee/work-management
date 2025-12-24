@@ -32,10 +32,10 @@ const Filter = ({ onSearch, placeholder = "Search..." }) => {
     return (
         <div className={`
             flex items-center gap-2 bg-white rounded-lg border transition-all duration-200
-            ${isFocused ? 'border-blue-400 shadow-sm ring-2 ring-blue-100' : 'border-gray-300 hover:border-gray-400'}
+            ${isFocused ? 'border-blue-400 shadow-sm ring-2 ring-blue-100' : 'border-border-light hover:border-border-medium'}
             px-3 py-2
         `}>
-            <Search className={`w-4 h-4 flex-shrink-0 transition-colors ${isFocused ? 'text-blue-500' : 'text-gray-400'}`} />
+            <Search className={`w-4 h-4 flex-shrink-0 transition-colors ${isFocused ? 'text-blue-500' : 'text-text-muted'}`} />
 
             <input
                 type="text"
@@ -50,16 +50,16 @@ const Filter = ({ onSearch, placeholder = "Search..." }) => {
                 onFocus={() => setIsFocused(true)}
                 onBlur={() => setIsFocused(false)}
                 placeholder={placeholder}
-                className="flex-1 bg-transparent border-none outline-none text-sm text-gray-700 placeholder:text-gray-400"
+                className="flex-1 bg-transparent border-none outline-none text-sm text-text-main placeholder:text-text-muted"
             />
 
             {query && (
                 <button
                     onClick={handleClear}
-                    className="flex-shrink-0 p-1 rounded-full hover:bg-gray-100 transition-colors"
+                    className="flex-shrink-0 p-1 rounded-full hover:bg-bg-hover transition-colors"
                     aria-label="Clear search"
                 >
-                    <X className="w-3 h-3 text-gray-400" />
+                    <X className="w-3 h-3 text-text-muted" />
                 </button>
             )}
         </div>

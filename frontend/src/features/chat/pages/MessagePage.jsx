@@ -1,15 +1,15 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useNavigate, useParams, useLocation } from 'react-router-dom';
 import {
   Bot,
   Circle,
-  CircleUserIcon,
   MessageCircle,
   MoreHorizontal,
   Search,
   UserPlus,
   Sparkles,
   Users,
+  CircleUserRoundIcon,
 } from 'lucide-react';
 import ChatWindow from '../components/ChatWindow';
 import AIChat from '../components/AIChat';
@@ -22,13 +22,15 @@ import CreateGroupModal from '../components/CreateGroupModal';
 import GroupMembersModal from '../components/GroupMembersModal';
 import { normalizeToString, toIsoTimestamp } from '../utils/chatUtils';
 
-const MessagePage = () => {
+const MessagePage = ({ defaultMode = 'inbox' }) => {
   const navigate = useNavigate();
-  const { userId } = useParams();
+  const { userId, groupId } = useParams();
+  const location = useLocation();
   const [conversations, setConversations] = useState([]);
   const [selectedUser, setSelectedUser] = useState(null);
-  const [chatMode, setChatMode] = useState('inbox');
+  const [chatMode, setChatMode] = useState(defaultMode);
   const leavingAiRef = useRef(false);
+  const manualModeSwitchRef = useRef(false);
   const [conversationsLoading, setConversationsLoading] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [isGroupModalOpen, setIsGroupModalOpen] = useState(false);
@@ -36,11 +38,14 @@ const MessagePage = () => {
   const [selectedGroupForMembers, setSelectedGroupForMembers] = useState(null);
   const [aiConversations, setAiConversations] = useState([]);
   const [aiConversationsLoading, setAiConversationsLoading] = useState(false);
+  const aiFetchTimeRef = useRef(0);
+  const aiFetchInFlightRef = useRef(false);
   const [activeAiMenu, setActiveAiMenu] = useState(null);
   const [editingAiConversation, setEditingAiConversation] = useState(null);
+  const [leavingGroup, setLeavingGroup] = useState(false);
 
-  const { employees, getAllUsers } = useEmployeeStore();
-  const { user } = useUserStore();
+  const { employees, getAllUsersForMessaging } = useEmployeeStore();
+  const { user, checkAuth } = useUserStore();
   const { onlineUsers, isConnected, socket } = useSocket();
 
   const fetchConversations = useCallback(
@@ -48,7 +53,7 @@ const MessagePage = () => {
       const effectiveUserId = normalizeToString(targetUserId || user?.id);
       if (!effectiveUserId) {
         setConversations([]);
-        return;
+        return [];
       }
 
       setConversationsLoading(true);
@@ -74,9 +79,11 @@ const MessagePage = () => {
         });
 
         setConversations(normalized);
+        return normalized;
       } catch (error) {
         console.error('Error fetching conversations:', error);
         setConversations([]);
+        return [];
       } finally {
         setConversationsLoading(false);
       }
@@ -89,7 +96,12 @@ const MessagePage = () => {
       setAiConversations([]);
       return;
     }
-    
+    if (aiFetchInFlightRef.current) return;
+    const now = Date.now();
+    if (now - aiFetchTimeRef.current < 1000) return; // throttle 1s
+    aiFetchTimeRef.current = now;
+    aiFetchInFlightRef.current = true;
+
     setAiConversationsLoading(true);
     try {
       const res = await axios.get(`/ai/conversations/${user.id}`);
@@ -102,6 +114,7 @@ const MessagePage = () => {
       setAiConversations([]);
     } finally {
       setAiConversationsLoading(false);
+      aiFetchInFlightRef.current = false;
     }
   }, [user?.id]);
 
@@ -133,17 +146,37 @@ const MessagePage = () => {
 
   const handleSelectUser = useCallback(
     (target) => {
-      if (!target?.id) return;
-      if (target.id.startsWith('ai-')) {
+      if (!target?.id) {
+        console.warn('handleSelectUser: target.id is missing', target);
+        return;
+      }
+      console.log('handleSelectUser called with:', { id: target.id, role: target.role, name: target.name });
+      
+      if (target.id.startsWith('ai-') || target.role === 'ai') {
         // AI conversation selected
         const conversationId = target.conversation?.conversationId;
         if (conversationId) {
-          navigate(`/message/ai?conversationId=${conversationId}`);
+          navigate(`/messages/ai?conversationId=${conversationId}`);
         } else {
-          navigate('/message/ai');
+          navigate('/messages/ai');
         }
+      } else if (target.role === 'group') {
+        // Group chat selected - ensure ID is properly formatted
+        const groupId = normalizeToString(target.id);
+        if (!groupId) {
+          console.error('handleSelectUser: group ID is invalid', target);
+          return;
+        }
+        console.log('Navigating to group chat:', groupId);
+        navigate(`/messages/group/${groupId}`);
       } else {
-        navigate(`/message/${target.id}`);
+        // Inbox (1-1 chat) selected
+        const userId = normalizeToString(target.id);
+        if (!userId) {
+          console.error('handleSelectUser: user ID is invalid', target);
+          return;
+        }
+        navigate(`/messages/inbox/${userId}`);
       }
     },
     [navigate]
@@ -289,6 +322,7 @@ const MessagePage = () => {
       const normalizedUserId = normalizeToString(user?.id);
       const userTeamNames = Array.isArray(user?.teamNames) ? user.teamNames : [];
 
+      // Filter to show only groups where user is a member
       return conversationPartners.filter((partner) => {
         if (partner.role !== 'group') return false;
         if (!normalizedUserId) return false;
@@ -299,6 +333,7 @@ const MessagePage = () => {
               .filter(Boolean)
           : [];
 
+        // User must be a member of the group
         if (!memberIds.includes(normalizedUserId)) {
           return false;
         }
@@ -307,13 +342,19 @@ const MessagePage = () => {
           partner.conversation?.conversationId || partner.id
         );
 
+        // For team groups (auto-created), verify user is in the team
         if (conversationKey && conversationKey.startsWith('team:')) {
           const groupName = partner.conversation?.groupName || partner.name;
           if (!groupName) return false;
-          if (!userTeamNames.length) return false;
-          return userTeamNames.includes(groupName);
+          // If user has team names, verify the group belongs to one of their teams
+          if (userTeamNames.length > 0) {
+            return userTeamNames.includes(groupName);
+          }
+          // If no team names but user is in members, still show (might be a new team)
+          return true;
         }
 
+        // For manual groups, if user is a member, show it
         return true;
       });
     }
@@ -364,6 +405,8 @@ const MessagePage = () => {
 
   const filteredNewChatUsers = useMemo(() => {
     const term = searchTerm.trim().toLowerCase();
+    // In inbox mode, show ALL users (no filtering by department/team)
+    // Only exclude: current user, AI, groups, and users who already have conversations
     const base = (availableUsersWithAI || []).filter((person) =>
       !conversationPartners.some((partner) => partner.id === person.id) &&
       person.id !== user?.id &&
@@ -375,6 +418,19 @@ const MessagePage = () => {
       return fields.some((field) => field?.toString().toLowerCase().includes(term));
     });
   }, [availableUsersWithAI, conversationPartners, searchTerm, user?.id]);
+
+  // Sync chatMode with route segment and defaultMode (stable deps to avoid loops)
+  useEffect(() => {
+    const path = location?.pathname || '';
+    let targetMode = defaultMode || 'inbox';
+    if (path.startsWith('/messages/ai')) targetMode = 'ai';
+    else if (path.startsWith('/messages/groups')) targetMode = 'group';
+    if (targetMode !== chatMode) {
+      setSelectedUser(null);
+      setChatMode(targetMode);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [location?.pathname, defaultMode]);
 
   useEffect(() => {
     if (user?.id) {
@@ -403,11 +459,12 @@ const MessagePage = () => {
   }, [chatMode, fetchAiConversations]);
 
   useEffect(() => {
-    getAllUsers();
-  }, [getAllUsers]);
+    // For messaging, get all users without role-based filtering
+    getAllUsersForMessaging();
+  }, [getAllUsersForMessaging]);
 
   useEffect(() => {
-    if (!socket) return;
+    if (!socket) return undefined;
     const refresh = () => fetchConversations();
     socket.on('receiveMessage', refresh);
     socket.on('messageConfirmed', refresh);
@@ -417,21 +474,49 @@ const MessagePage = () => {
       socket.off('messageConfirmed', refresh);
       socket.off('messagesRead', refresh);
     };
-  }, [socket, fetchConversations]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [socket]);
 
   useEffect(() => {
-    if (userId === 'ai') {
+    // Check if we're on AI route
+    if (location.pathname.includes('/messages/ai')) {
+      manualModeSwitchRef.current = false;
       if (leavingAiRef.current) {
         return;
       }
       if (chatMode !== 'ai') {
         setChatMode('ai');
       }
-      setSelectedUser(null);
+      // Handle AI conversation from query param
+      const searchParams = new URLSearchParams(location.search);
+      const conversationId = searchParams.get('conversationId');
+      if (conversationId && aiConversations.length > 0) {
+        const aiConv = aiConversations.find(conv => (conv._id || conv.id) === conversationId);
+        if (aiConv) {
+          setSelectedUser({
+            id: `ai-${conversationId}`,
+            name: aiConv.title || 'New Conversation',
+            role: 'ai',
+            conversation: { conversationId },
+          });
+        }
+      } else {
+        setSelectedUser(null);
+      }
       return;
     }
 
-    if (!userId) {
+    // Handle group chat route
+    const effectiveId = groupId || userId;
+    
+    if (!effectiveId) {
+      manualModeSwitchRef.current = false;
+      // Don't reset mode if we're on a specific route
+      if (location.pathname === '/messages' || location.pathname === '/messages/' || location.pathname.startsWith('/messages/inbox') || location.pathname === '/messages/groups') {
+        setSelectedUser(null);
+        leavingAiRef.current = false;
+        return;
+      }
       if (chatMode === 'ai') {
         setChatMode('inbox');
       }
@@ -440,22 +525,32 @@ const MessagePage = () => {
       return;
     }
 
+    // If we have groupId, ensure we're in group mode
+    if (groupId && chatMode !== 'group') {
+      setChatMode('group');
+    }
+
     leavingAiRef.current = false;
 
+    if (manualModeSwitchRef.current) {
+      return;
+    }
+
+    const normalizedId = normalizeToString(effectiveId);
     const candidate =
-      conversationPartners.find((partner) => partner.id === userId) ||
-      availableUsersWithAI.find((person) => person.id === userId);
+      conversationPartners.find((partner) => normalizeToString(partner.id) === normalizedId) ||
+      availableUsersWithAI.find((person) => normalizeToString(person.id) === normalizedId);
 
     if (candidate) {
       if (candidate.role === 'group' && chatMode !== 'group') {
         setChatMode('group');
-      } else if (candidate.role !== 'group' && chatMode === 'group') {
+      } else if (candidate.role !== 'group' && chatMode === 'group' && !groupId) {
         setChatMode('inbox');
       } else if (chatMode === 'ai') {
         setChatMode('inbox');
       }
 
-      if (selectedUser?.id === candidate.id) return;
+      if (selectedUser?.id && normalizeToString(selectedUser.id) === normalizedId) return;
 
       const normalized = {
         id: candidate.id,
@@ -464,8 +559,14 @@ const MessagePage = () => {
         role: candidate.role || '',
         department: candidate.department || '',
         avatar: candidate.avatar || null,
-        conversationId: candidate.conversation?.conversationId || candidate.conversationId || null,
-        members: candidate.members || candidate.conversation?.members || candidate.conversation?.groupMembers || [],
+        conversationId:
+          candidate.conversation?.conversationId || candidate.conversationId || null,
+        members:
+          candidate.members ||
+          candidate.conversation?.members ||
+          candidate.conversation?.groupMembers ||
+          [],
+        conversation: candidate.conversation || null,
       };
       setSelectedUser(normalized);
       setConversations((prev) =>
@@ -473,8 +574,11 @@ const MessagePage = () => {
           conv.partnerId === normalized.id ? { ...conv, read: true, unreadCount: 0 } : conv
         )
       );
+    } else if (groupId) {
+      // If groupId is in URL but not found in conversations, try to fetch it
+      console.warn('Group not found in conversations, groupId:', groupId);
     }
-  }, [userId, chatMode, conversationPartners, availableUsersWithAI, selectedUser?.id]);
+  }, [userId, groupId, chatMode, conversationPartners, availableUsersWithAI, selectedUser?.id, location.pathname, location.search, aiConversations]);
 
   useEffect(() => {
     if (chatMode !== 'ai') {
@@ -496,31 +600,36 @@ const MessagePage = () => {
         <img
           src={userItem.avatar}
           alt={userItem?.name || 'User avatar'}
-          className={`${size} rounded-full object-cover border border-white shadow-sm`}
+          className={`${size} rounded-full object-cover border-2 border-white shadow-sm`}
         />
       );
     }
 
-    const initials = (userItem?.name || userItem?.email || '')
-      .split(' ')
-      .map((part) => part.charAt(0).toUpperCase())
-      .slice(0, 2)
-      .join('');
-
+    // Fallback: display CircleUserRoundIcon with primary-light background (like in header)
+    const sizeNum = parseInt(size.replace(/\D/g, '')) || 12;
+    const iconSize = sizeNum >= 14 ? 'h-10 w-10' : sizeNum >= 12 ? 'h-8 w-8' : 'h-6 w-6';
+    
     return (
-      <div className={`${size} flex items-center justify-center rounded-full bg-gradient-to-br from-blue-500 to-indigo-500 text-white font-semibold shadow-sm`}>
-        {initials || <CircleUserIcon className='h-5 w-5' />}
+      <div className={`${size} flex items-center justify-center rounded-full bg-primary-light`}>
+        <CircleUserRoundIcon className={`${iconSize} text-primary`} />
       </div>
     );
   };
 
   const handleToggleMode = (mode) => {
     if (mode === chatMode) return;
+    manualModeSwitchRef.current = true;
     if (chatMode === 'ai' && mode !== 'ai') {
       leavingAiRef.current = true;
     }
     setChatMode(mode);
-    navigate('/message');
+    if (mode === 'group') {
+      navigate('/messages/groups');
+    } else if (mode === 'ai') {
+      navigate('/messages/ai');
+    } else {
+      navigate('/messages');
+    }
     setSelectedUser((prev) => {
       if (!prev) return null;
       if (mode === 'group') {
@@ -534,16 +643,82 @@ const MessagePage = () => {
     leavingAiRef.current = false;
     setChatMode('ai');
     setSelectedUser(null);
-    navigate('/message/ai');
+    navigate('/messages/ai');
   };
 
-  if (!user) {
-    return (
-      <div className='flex h-full items-center justify-center bg-gradient-to-br from-slate-100 to-slate-200 text-gray-500'>
-        Loading user...
-      </div>
-    );
-  }
+  const handleLeaveGroup = useCallback(async () => {
+    if (!selectedGroupForMembers?.conversation?.conversationId || !user?.id) {
+      return;
+    }
+    const conversationId = selectedGroupForMembers.conversation.conversationId;
+    try {
+      setLeavingGroup(true);
+      await axios.post(`/messages/groups/${conversationId}/leave`, { userId: user.id });
+
+      if (selectedUser?.id === selectedGroupForMembers?.id) {
+        setSelectedUser(null);
+      }
+
+      setGroupMembersModalOpen(false);
+      setSelectedGroupForMembers(null);
+
+      if (user?.id) {
+        await fetchConversations(user.id);
+      }
+      await getAllUsersForMessaging();
+      if (typeof checkAuth === 'function') {
+        await checkAuth();
+      }
+    } catch (error) {
+      console.error('Failed to leave group conversation:', error);
+      alert('Cannot leave group. Please try again.');
+    } finally {
+      setLeavingGroup(false);
+    }
+  }, [
+    selectedGroupForMembers?.conversation?.conversationId,
+    selectedGroupForMembers?.id,
+    user?.id,
+    selectedUser?.id,
+    fetchConversations,
+    getAllUsersForMessaging,
+    checkAuth,
+  ]);
+
+  const handleShowMembers = useCallback(
+    async (group) => {
+      if (!group) return;
+      let groupData = group;
+      try {
+        if (user?.id) {
+          const latest = await fetchConversations(user.id);
+          const fresh = latest?.find(
+            (conv) =>
+              conv.partnerId === group.id ||
+              conv.conversationId === group.conversation?.conversationId
+          );
+          if (fresh) {
+            groupData = {
+              ...group,
+              name: fresh.groupName || fresh.partnerName || group.name,
+              members:
+                fresh.groupMembers ||
+                fresh.members ||
+                group.members ||
+                [],
+              conversation: fresh,
+            };
+          }
+        }
+      } catch (error) {
+        console.error('Failed to refresh group members:', error);
+      } finally {
+        setSelectedGroupForMembers(groupData);
+        setGroupMembersModalOpen(true);
+      }
+    },
+    [user?.id, fetchConversations]
+  );
 
   useEffect(() => {
     const handleClick = () => setActiveAiMenu(null);
@@ -560,6 +735,14 @@ const MessagePage = () => {
       document.removeEventListener('keydown', handleKey);
     };
   }, []);
+
+  if (!user) {
+    return (
+      <div className='flex h-full items-center justify-center bg-gradient-to-br from-slate-100 to-slate-200 text-text-secondary'>
+        Loading user...
+      </div>
+    );
+  }
 
   const handleRenameAiConversation = useCallback(
     async (conversationId, name) => {
@@ -596,62 +779,27 @@ const MessagePage = () => {
     <div className='h-full w-full overflow-hidden bg-slate-50'>
       <div className='mx-auto flex h-full max-w-[1400px] gap-6 px-6 py-6'>
         {/* Sidebar */}
-        <aside className='flex w-[360px] flex-col rounded-3xl border border-slate-200 bg-white/90 p-6 shadow-xl shadow-blue-50/40 backdrop-blur'>
-          <div className='mb-6 rounded-3xl border border-slate-100 bg-gradient-to-br from-blue-500/10 via-indigo-500/10 to-purple-500/10 p-5'>
+        <aside className='flex w-[360px] flex-col rounded-3xl border border-border-light bg-white/90 p-6 shadow-xl shadow-soft-lg backdrop-blur'>
+          <div className='mb-6 rounded-3xl border border-border-light bg-gradient-to-br from-primary-50 via-primary-100/50 to-primary-50 p-5'>
             <div className='flex items-center gap-3'>
               {renderUserAvatar(user, 'w-14 h-14')}
               <div>
-                <p className='text-xs font-semibold uppercase tracking-wide text-blue-600'>Welcome back</p>
-                <p className='text-lg font-semibold text-slate-900'>{user.name || user.email}</p>
-                <p className='text-xs text-slate-500'>{isConnected ? 'Online now' : 'Connecting...'}</p>
+                <p className='text-xs font-semibold uppercase tracking-wide text-primary'>Welcome back</p>
+                <p className='text-lg font-semibold text-text-main'>{user.name || user.email}</p>
+                <p className='text-xs text-text-secondary'>{isConnected ? 'Online now' : 'Connecting...'}</p>
               </div>
             </div>
-            <div className='mt-4 flex items-center gap-2 text-sm font-medium'>
-              <button
-                type='button'
-                onClick={() => handleToggleMode('inbox')}
-                className={`flex-1 rounded-full px-4 py-2 transition ${
-                  chatMode === 'inbox'
-                    ? 'bg-blue-600 text-white shadow-lg shadow-blue-500/30'
-                    : 'bg-white/70 text-slate-600 hover:bg-blue-50'
-                }`}
-              >
-                <Users className='mr-2 inline-block h-4 w-4' /> Inbox
-              </button>
-              <button
-                type='button'
-                onClick={() => handleToggleMode('group')}
-                className={`flex-1 rounded-full px-4 py-2 transition ${
-                  chatMode === 'group'
-                    ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-500/30'
-                    : 'bg-white/70 text-slate-600 hover:bg-indigo-50'
-                }`}
-              >
-                <Users className='mr-2 inline-block h-4 w-4' /> Group
-              </button>
-              <button
-                type='button'
-                onClick={handleOpenChatAI}
-                className={`inline-flex h-10 w-10 items-center justify-center rounded-full transition ${
-                  chatMode === 'ai'
-                    ? 'bg-purple-600 text-white shadow-lg shadow-purple-500/30'
-                    : 'bg-white/70 text-slate-600 hover:bg-purple-50'
-                }`}
-                title='AI Chat'
-              >
-                <Sparkles className='h-5 w-5' />
-              </button>
-            </div>
+            {/* Mode buttons hidden - using MessageModuleSidebar instead */}
           </div>
 
           <div className='relative mb-5'>
-            <Search className='absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400' />
+            <Search className='absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-text-muted' />
             <input
               type='text'
               value={searchTerm}
               onChange={(event) => setSearchTerm(event.target.value)}
               placeholder='Search messages or people'
-              className='w-full rounded-full border border-slate-200 bg-white py-3 pl-10 pr-4 text-sm text-slate-700 shadow-inner focus:outline-none focus:ring-4 focus:ring-blue-100'
+              className='w-full rounded-full border border-border-light bg-white py-3 pl-10 pr-4 text-sm text-text-main shadow-inner focus:outline-none focus:ring-4 focus:ring-primary/20'
             />
           </div>
 
@@ -664,7 +812,7 @@ const MessagePage = () => {
               <button
                 type='button'
                 onClick={() => setIsGroupModalOpen(true)}
-                className='inline-flex h-9 w-9 items-center justify-center rounded-full border border-blue-200 bg-blue-50 text-blue-600 transition hover:bg-blue-100'
+                className='inline-flex h-9 w-9 items-center justify-center rounded-full border border-primary/30 bg-primary-light text-primary transition hover:bg-primary/10'
                 title='Create group chat'
               >
                 <UserPlus className='h-4 w-4' />
@@ -804,34 +952,37 @@ const MessagePage = () => {
                     <button
                       key={partner.id}
                       type='button'
-                      onClick={() => handleSelectUser(partner)}
+                      onClick={() => {
+                        console.log('Clicking partner:', partner);
+                        handleSelectUser(partner);
+                      }}
                       className={`w-full rounded-2xl border px-4 py-3 text-left transition ${
                         isActive
-                          ? 'border-blue-400 bg-blue-50/70 shadow-inner shadow-blue-100'
-                          : 'border-slate-100 bg-white hover:border-blue-200 hover:bg-blue-50/40'
+                          ? 'border-primary bg-primary-light/70 shadow-inner shadow-primary/20'
+                          : 'border-border-light bg-white hover:border-primary/30 hover:bg-primary-light/40'
                       }`}
                     >
                       <div className='flex items-center gap-3'>
                         {renderUserAvatar(partner, 'w-12 h-12')}
                         <div className='min-w-0 flex-1'>
                           <div className='flex items-center justify-between gap-2'>
-                            <span className='truncate text-sm font-semibold text-slate-900'>
+                            <span className='truncate text-sm font-semibold text-text-main'>
                               {partner.name}
                             </span>
-                            <span className='text-xs text-slate-400'>
+                            <span className='text-xs text-text-secondary'>
                               {conversation?.timestamp ? formatHour(conversation.timestamp) : ''}
                             </span>
                           </div>
-                          <p className={`truncate text-xs ${!conversation?.read && !conversation?.isMeSend ? 'font-semibold text-blue-600' : 'text-slate-500'}`}>
+                          <p className={`truncate text-xs ${!conversation?.read && !conversation?.isMeSend ? 'font-semibold text-primary' : 'text-text-secondary'}`}>
                             {partner.preview}
                           </p>
-                          <div className='mt-2 flex items-center justify-between text-[10px] text-slate-400'>
+                          <div className='mt-2 flex items-center justify-between text-[10px] text-text-secondary'>
                             <span className='flex items-center gap-1'>
-                              <Circle className={`h-2 w-2 ${isPartnerOnline ? 'text-emerald-500' : 'text-slate-300'}`} fill='currentColor' />
+                              <Circle className={`h-2 w-2 ${isPartnerOnline ? 'text-emerald-500' : 'text-text-muted'}`} fill='currentColor' />
                               {isPartnerOnline ? 'Online' : 'Offline'}
                             </span>
                             {!conversation?.read && !conversation?.isMeSend && conversation?.unreadCount > 0 && (
-                              <span className='inline-flex min-w-[1.5rem] items-center justify-center rounded-full bg-blue-600 px-2 py-0.5 text-[10px] font-semibold text-white'>
+                              <span className='inline-flex min-w-[1.5rem] items-center justify-center rounded-full bg-primary px-2 py-0.5 text-[10px] font-semibold text-white'>
                                 {conversation.unreadCount}
                               </span>
                             )}
@@ -848,7 +999,7 @@ const MessagePage = () => {
               ) : (
                 <div className='rounded-2xl border border-dashed border-slate-200 bg-white/70 p-6 text-center text-sm text-slate-500'>
                   {chatMode === 'group' 
-                    ? 'No team conversations yet. Create a group to get started.' 
+                    ? 'No group conversations yet. Team groups will appear automatically if you are a member. You can also create a new group manually.' 
                     : chatMode === 'ai'
                     ? 'Start chatting with AI. Your conversation history will appear here.'
                     : 'Start chatting by selecting a teammate below.'}
@@ -895,7 +1046,7 @@ const MessagePage = () => {
         </aside>
 
         {/* Conversation panel */}
-        <section className='flex min-h-0 flex-1 flex-col rounded-3xl border border-slate-200 bg-white/70 shadow-2xl shadow-blue-50/40 backdrop-blur'>
+        <section className='flex min-h-0 flex-1 flex-col rounded-3xl border border-border-light bg-white/70 shadow-2xl shadow-soft-lg backdrop-blur'>
           {chatMode === 'ai' ? (
             <AIChat />
           ) : selectedUser ? (
@@ -908,19 +1059,16 @@ const MessagePage = () => {
                   ? isGroupOnline(selectedUser.members)
                   : isUserOnline(selectedUser.id)
               }
-              onShowMembers={(group) => {
-                setSelectedGroupForMembers(group);
-                setGroupMembersModalOpen(true);
-              }}
+              onShowMembers={handleShowMembers}
             />
           ) : (
-            <div className='flex h-full flex-col items-center justify-center bg-gradient-to-br from-white to-blue-50/60 text-center text-slate-500'>
-              <MessageCircle className='mb-4 h-16 w-16 text-blue-300' />
-              <p className='text-lg font-semibold text-slate-700'>Select a teammate to start chatting</p>
-              <p className='text-sm text-slate-500'>Your conversations and AI assistant will appear here.</p>
+            <div className='flex h-full flex-col items-center justify-center bg-gradient-to-br from-white to-primary-50/60 text-center text-text-secondary'>
+              <MessageCircle className='mb-4 h-16 w-16 text-primary/30' />
+              <p className='text-lg font-semibold text-text-main'>Select a teammate to start chatting</p>
+              <p className='text-sm text-text-secondary'>Your conversations and AI assistant will appear here.</p>
               {!isConnected && (
-                <div className='mt-4 flex items-center gap-2 text-xs text-slate-400'>
-                  <span className='h-2 w-2 animate-ping rounded-full bg-blue-400' /> Connecting...
+                <div className='mt-4 flex items-center gap-2 text-xs text-text-muted'>
+                  <span className='h-2 w-2 animate-ping rounded-full bg-primary' /> Connecting...
                 </div>
               )}
             </div>
@@ -967,11 +1115,23 @@ const MessagePage = () => {
 
       <GroupMembersModal
         open={groupMembersModalOpen}
-        onClose={() => setGroupMembersModalOpen(false)}
-        groupName={selectedGroupForMembers?.name}
-        members={selectedGroupForMembers?.members || []}
+        onClose={() => {
+          setGroupMembersModalOpen(false);
+          setSelectedGroupForMembers(null);
+        }}
+        groupName={selectedGroupForMembers?.name || selectedGroupForMembers?.conversation?.groupName}
+        members={
+          selectedGroupForMembers?.members ||
+          selectedGroupForMembers?.conversation?.groupMembers ||
+          []
+        }
         users={employees}
         currentUser={user}
+        onLeaveGroup={handleLeaveGroup}
+        isTeamGroup={Boolean(
+          selectedGroupForMembers?.conversation?.conversationId?.startsWith('team:')
+        )}
+        isProcessingLeave={leavingGroup}
       />
     </div>
   );

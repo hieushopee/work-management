@@ -1,7 +1,7 @@
 import React, { useMemo } from 'react';
-import { Pin, BarChart2, Calendar } from 'lucide-react';
+import { Pin, BarChart2, Calendar, CheckCircle2, Circle } from 'lucide-react';
 
-export default function FormList({ forms = [], selectedFormId, onSelectForm }) {
+export default function FormList({ forms = [], selectedFormId, onSelectForm, showVotedIndicator = false, showPendingIndicator = false }) {
   const normalized = useMemo(() => {
     return (forms || []).map(f => ({
       ...f,
@@ -29,7 +29,7 @@ export default function FormList({ forms = [], selectedFormId, onSelectForm }) {
   }, [normalized]);
 
   if (!sortedForms.length) {
-    return <div className="p-4 text-center text-slate-500">No polls available.</div>;
+    return <div className="p-4 text-center text-text-secondary">No polls available.</div>;
   }
 
   return (
@@ -40,18 +40,30 @@ export default function FormList({ forms = [], selectedFormId, onSelectForm }) {
           <button
             key={form.id}
             type="button"
-            className={`w-full text-left rounded-xl p-4 cursor-pointer transition-all duration-200 ${isSelected ? 'bg-blue-50 shadow-sm' : 'bg-white hover:bg-slate-50'}`}
+            className={`w-full text-left rounded-xl p-4 cursor-pointer transition-all duration-200 ${isSelected ? 'bg-primary-light shadow-sm' : 'bg-white hover:bg-bg-hover'}`}
             onClick={() => form.id && onSelectForm && onSelectForm(form)}
           >
-            <div className="flex justify-between items-start">
-              <h3 className="font-semibold text-slate-800 pr-2 flex-1">{form.title}</h3>
+            <div className="flex justify-between items-start gap-2">
+              <h3 className="font-semibold text-text-main flex-1">{form.title}</h3>
+              <div className="flex items-center gap-1 flex-shrink-0">
+                {showVotedIndicator && (
+                  <span className="text-green-500" title="You have voted">
+                    <CheckCircle2 className='w-4 h-4' />
+                  </span>
+                )}
+                {showPendingIndicator && (
+                  <span className="text-slate-400" title="Not voted yet">
+                    <Circle className='w-4 h-4' />
+                  </span>
+                )}
               {form.isPinned && (
                 <span className="text-slate-400" title="Pinned">
                   <Pin className='w-4 h-4' />
                 </span>
               )}
+              </div>
             </div>
-            <div className="flex items-center justify-between text-xs text-slate-500 mt-3">
+            <div className="flex items-center justify-between text-xs text-text-secondary mt-3">
                 <div className="flex items-center gap-1">
                     <BarChart2 className="w-3 h-3" />
                     <span>{form.totalVotes} {form.totalVotes === 1 ? 'vote' : 'votes'}</span>

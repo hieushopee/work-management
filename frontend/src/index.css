@@ -1,12 +1,117 @@
-@import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;600;700&display=swap');
+﻿@import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;600;700&display=swap');
 @import 'tailwindcss';
 @import 'react-calendar/dist/Calendar.css';
 
-html,
+/* Tailwind v4 Theme Configuration */
+@theme {
+  /* Primary Accent (Orange) */
+  --color-primary: #FF8C00;
+  --color-primary-light: #FFD8A8;
+  --color-primary-hover: #FF7700;
+  --color-primary-active: #E67300;
+  --color-primary-50: #FFF8F0;
+  --color-primary-100: #FFE5CC;
+  --color-primary-200: #FFCC99;
+  --color-primary-300: #FFB366;
+  --color-primary-400: #FF9933;
+  --color-primary-500: #FF8C00;
+  --color-primary-600: #E67300;
+  --color-primary-700: #CC6600;
+  --color-primary-800: #B35900;
+  --color-primary-900: #994D00;
+
+  /* Background Colors */
+  --color-bg-main: #FFFFFF;
+  --color-bg-secondary: #F9FAFB;
+  --color-bg-hover: #F3F4F6;
+  --color-bg-active: #E5E7EB;
+
+  /* Text Colors */
+  --color-text-main: #1F2937;
+  --color-text-secondary: #6B7280;
+  --color-text-muted: #9CA3AF;
+  --color-text-inverse: #FFFFFF;
+
+  /* Border Colors */
+  --color-border-light: #E5E7EB;
+  --color-border-medium: #D1D5DB;
+  --color-border-dark: #9CA3AF;
+
+  /* Box Shadows */
+  --shadow-soft: 0 1px 3px 0 rgba(0, 0, 0, 0.05);
+  --shadow-soft-md: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03);
+  --shadow-soft-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.05), 0 4px 6px -2px rgba(0, 0, 0, 0.03);
+  --shadow-soft-xl: 0 20px 25px -5px rgba(0, 0, 0, 0.05), 0 10px 10px -5px rgba(0, 0, 0, 0.02);
+}
+
+@layer base {
+  *, *::before, *::after {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+  }
+
+  :root {
+    /* Background Colors */
+    --color-bg-main: #FFFFFF;
+    --color-bg-secondary: #F9FAFB;
+    --color-bg-hover: #F3F4F6;
+    --color-bg-active: #E5E7EB;
+
+    /* Text Colors */
+    --color-text-main: #1F2937;
+    --color-text-secondary: #6B7280;
+    --color-text-muted: #9CA3AF;
+    --color-text-inverse: #FFFFFF;
+
+    /* Accent Colors (Orange) */
+    --color-accent: #FF8C00;
+    --color-accent-light: #FFD8A8;
+    --color-accent-hover: #FF7700;
+    --color-accent-active: #E67300;
+
+    /* Border Colors */
+    --color-border-light: #E5E7EB;
+    --color-border-medium: #D1D5DB;
+    --color-border-dark: #9CA3AF;
+
+    /* Shadows */
+    --color-shadow-sm: rgba(0, 0, 0, 0.05);
+    --color-shadow-md: rgba(0, 0, 0, 0.1);
+    --color-shadow-lg: rgba(0, 0, 0, 0.15);
+  }
+}
+
+html {
+    height: 100%;
+    width: 100%;
+    overflow: hidden;
+    font-family: 'Montserrat', sans-serif;
+    background-color: var(--color-bg-main);
+    margin: 0 !important;
+    padding: 0 !important;
+}
+
 body {
     height: 100%;
+    width: 100%;
     overflow: hidden;
-    font-family: var(--font-montserrat);
+    font-family: 'Montserrat', sans-serif;
+    background-color: var(--color-bg-main);
+    color: var(--color-text-main);
+    margin: 0 !important;
+    padding: 0 !important;
+}
+
+#root {
+    height: 100%;
+    width: 100%;
+    min-width: 0;
+    overflow: hidden;
+    font-family: 'Montserrat', sans-serif;
+    background-color: var(--color-bg-main);
+    margin: 0 !important;
+    padding: 0 !important;
 }
 
 /* Utility: hide visible scrollbars but keep element scrollable */
@@ -18,18 +123,75 @@ body {
     display: none; /* Chrome, Safari, Opera */
 }
 
+@layer utilities {
+  /* Shadow Utilities */
+  .shadow-soft {
+    box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.05);
+  }
+  .shadow-soft-md {
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03);
+  }
+  .shadow-soft-lg {
+    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.05), 0 4px 6px -2px rgba(0, 0, 0, 0.03);
+  }
+  .shadow-soft-xl {
+    box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.05), 0 10px 10px -5px rgba(0, 0, 0, 0.02);
+  }
+}
+
+@layer components {
+  /* Button Styles */
+  .btn-primary {
+    @apply bg-primary text-white px-4 py-2 rounded-lg 
+           hover:bg-primary-hover active:bg-primary-active
+           transition-colors duration-200
+           focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2
+           disabled:opacity-50 disabled:cursor-not-allowed;
+  }
+
+  .btn-secondary {
+    @apply bg-white border border-border-light text-text-main px-4 py-2 rounded-lg
+           hover:bg-bg-hover
+           transition-colors duration-200
+           focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2
+           disabled:opacity-50 disabled:cursor-not-allowed;
+  }
+
+  /* Card Styles */
+  .card {
+    @apply bg-white border border-border-light rounded-lg shadow-soft
+           hover:shadow-soft-md transition-shadow duration-200;
+  }
+
+  /* Input Styles */
+  .input {
+    @apply w-full px-4 py-2 border border-border-light rounded-lg 
+           bg-white text-text-main
+           focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary
+           transition-colors duration-200
+           placeholder:text-text-muted
+           disabled:bg-bg-secondary disabled:cursor-not-allowed;
+  }
+}
+
 /* Calendar overrides */
+.react-calendar {
+    @apply bg-white border border-border-light rounded-lg shadow-soft;
+}
 .react-calendar__tile--now {
-    background: #1D4ED8 !important;
+    background: var(--color-accent) !important;
     color: #ffffff !important;
     border-radius: 50%;
     font-weight: 600;
 }
 .react-calendar__tile--hasActive,
 .react-calendar__tile--active {
-    background: #DBEAFE !important;
-    color: #1D4ED8 !important;
+    background: var(--color-accent-light) !important;
+    color: var(--color-accent) !important;
     border-radius: 50%;
     font-weight: 600;
 }
-
+.react-calendar__tile:hover {
+    background: var(--color-bg-hover) !important;
+    border-radius: 50%;
+}

@@ -75,10 +75,15 @@ export async function getEvents(req, res) {
       .map((id) => toObjectId(id))
       .filter((id) => id !== null);
 
+    const workspaceId = toObjectId(req.user?.workspace);
+
     const query = {
       startDate: { $lt: endDate },
       endDate: { $gt: startDate },
     };
+    if (workspaceId) {
+      query.workspace = workspaceId;
+    }
 
     if (objectIds.length > 0) {
       query.assignedTo = { $in: objectIds };
@@ -96,6 +101,8 @@ export async function getEvents(req, res) {
 export async function createEvent(req, res) {
   try {
     ensureUploadDir();
+    // Workspace is best-effort; if missing/invalid, allow creation to avoid blocking users.
+    const workspaceId = toObjectId(req.user?.workspace) || null;
 
     const {
       title,
@@ -126,14 +133,13 @@ export async function createEvent(req, res) {
       return res.status(400).json({ message: 'Missing creator information' });
     }
 
-    const assignedIds = Array.isArray(assignedTo) ? assignedTo : [assignedTo];
+    // If no assignees provided, default to the creator
+    const assignedIds = Array.isArray(assignedTo) && assignedTo.length
+      ? assignedTo
+      : [user.id];
     const assignedObjectIds = assignedIds
-      .map((id) => toObjectId(id))
-      .filter((id) => id !== null);
-
-    if (!assignedObjectIds.length) {
-      return res.status(400).json({ message: 'Assigned members are required' });
-    }
+      .map((id) => toObjectId(id) || id)
+      .filter(Boolean);
 
     const attachments = Array.isArray(req.files)
       ? req.files.map((file) => buildAttachmentPayload(file))
@@ -147,6 +153,7 @@ export async function createEvent(req, res) {
       createdById: toObjectId(user.id) || user.id,
       createdByName: user.name || null,
       createdByEmail: user.email || null,
+      ...(workspaceId ? { workspace: workspaceId } : {}),
       attendance: [],
       taskDescription: (taskDescription || '').trim(),
       reportNotes: (reportNotes || '').trim(),
@@ -163,12 +170,24 @@ export async function createEvent(req, res) {
 export async function updateEvent(req, res) {
   try {
     ensureUploadDir();
+    const workspaceId = toObjectId(req.user?.workspace);
     const { id } = req.params;
     const { title, start, end, assignedTo, taskDescription, reportNotes, removeAttachmentIds } = req.body || {};
 
     const event = await CalendarEvent.findById(id);
     if (!event) {
       return res.status(404).json({ message: 'Event not found' });
+    }
+
+    const isDifferentWorkspace =
+      workspaceId &&
+      event.workspace &&
+      (typeof event.workspace.equals === 'function'
+        ? !event.workspace.equals(workspaceId)
+        : String(event.workspace) !== String(workspaceId));
+
+    if (isDifferentWorkspace) {
+      return res.status(403).json({ message: 'Access denied: Event belongs to a different workspace' });
     }
 
     if (title !== undefined) event.title = title;
@@ -257,6 +276,7 @@ export async function markAttendance(req, res) {
   try {
     const { id } = req.params;
     const { userId, imageData, success: clientSuccess } = req.body || {};
+    const workspaceId = toObjectId(req.user?.workspace);
 
     if (!userId) {
       return res.status(400).json({ success: false, message: 'Missing userId' });
@@ -265,6 +285,17 @@ export async function markAttendance(req, res) {
     const event = await CalendarEvent.findById(id);
     if (!event) {
       return res.status(404).json({ success: false, message: 'Event not found' });
+    }
+
+    const isDifferentWorkspace =
+      workspaceId &&
+      event.workspace &&
+      (typeof event.workspace.equals === 'function'
+        ? !event.workspace.equals(workspaceId)
+        : String(event.workspace) !== String(workspaceId));
+
+    if (isDifferentWorkspace) {
+      return res.status(403).json({ success: false, message: 'Access denied: Event belongs to a different workspace' });
     }
 
     const attendanceUser = await User.findById(userId);
@@ -331,6 +362,7 @@ export async function startShift(req, res) {
   try {
     const { id } = req.params;
     const { userId } = req.body || {};
+    const workspaceId = toObjectId(req.user?.workspace);
 
     if (!userId) {
       return res.status(400).json({ success: false, message: 'Missing userId' });
@@ -339,6 +371,17 @@ export async function startShift(req, res) {
     const event = await CalendarEvent.findById(id);
     if (!event) {
       return res.status(404).json({ success: false, message: 'Event not found' });
+    }
+
+    const isDifferentWorkspace =
+      workspaceId &&
+      event.workspace &&
+      (typeof event.workspace.equals === 'function'
+        ? !event.workspace.equals(workspaceId)
+        : String(event.workspace) !== String(workspaceId));
+
+    if (isDifferentWorkspace) {
+      return res.status(403).json({ success: false, message: 'Access denied: Event belongs to a different workspace' });
     }
 
     const objectUserId = toObjectId(userId) || userId;
@@ -390,6 +433,7 @@ export async function endShift(req, res) {
   try {
     const { id } = req.params;
     const { userId } = req.body || {};
+    const workspaceId = toObjectId(req.user?.workspace);
 
     if (!userId) {
       return res.status(400).json({ success: false, message: 'Missing userId' });
@@ -398,6 +442,17 @@ export async function endShift(req, res) {
     const event = await CalendarEvent.findById(id);
     if (!event) {
       return res.status(404).json({ success: false, message: 'Event not found' });
+    }
+
+    const isDifferentWorkspace =
+      workspaceId &&
+      event.workspace &&
+      (typeof event.workspace.equals === 'function'
+        ? !event.workspace.equals(workspaceId)
+        : String(event.workspace) !== String(workspaceId));
+
+    if (isDifferentWorkspace) {
+      return res.status(403).json({ success: false, message: 'Access denied: Event belongs to a different workspace' });
     }
 
     const objectUserId = toObjectId(userId) || userId;

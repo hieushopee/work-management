@@ -50,6 +50,26 @@ const formSchema = new Schema(
       required: true,
       trim: true,
     },
+    visibility: {
+      scope: {
+        type: String,
+        enum: ['company', 'department', 'team', 'users'],
+        default: 'company',
+      },
+      departments: {
+        type: [String],
+        default: [],
+      },
+      teams: {
+        type: [String],
+        default: [],
+      },
+      users: {
+        type: [Schema.Types.ObjectId],
+        ref: 'User',
+        default: [],
+      },
+    },
     options: {
       type: [optionSchema],
       default: [],

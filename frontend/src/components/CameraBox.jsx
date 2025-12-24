@@ -11,7 +11,7 @@ const REQUIRED_SUCCESS_STREAK = 2;
 const DETECT_INTERVAL_MS = 600;
 const FAIL_AUTOCLOSE_SECONDS = 5;
 
-export default function CameraBox({ onClose, onSuccess, user, eventId }) {
+export default function CameraBox({ onClose, onSuccess, user, eventId, verifyOnly = false }) {
   const videoRef = useRef(null);
   const streamRef = useRef(null);
   const [status, setStatus] = useState("scanning");
@@ -39,7 +39,7 @@ export default function CameraBox({ onClose, onSuccess, user, eventId }) {
           setMessage("? User has no face image (faceUrl).");
           return;
         }
-        if (!eventId) {
+        if (!eventId && !verifyOnly) {
           setStatus("fail");
           setMessage("? Event has no ID. Save event first.");
           return;
@@ -167,13 +167,16 @@ export default function CameraBox({ onClose, onSuccess, user, eventId }) {
 
       let res = null;
       let apiError = null;
-      try {
-        res = await markAttendance(eventId, user.id || user.uid, dataUrl, match);
-      } catch (error) {
-        apiError = error;
+      let serverSuccess = true;
+      if (!verifyOnly) {
+        try {
+          res = await markAttendance(eventId, user.id || user.uid, dataUrl, match);
+        } catch (error) {
+          apiError = error;
+        }
+        serverSuccess = res?.success === true;
       }
 
-      const serverSuccess = res?.success === true;
       const finalSuccess = match && serverSuccess;
 
       if (finalSuccess) {
@@ -183,7 +186,11 @@ export default function CameraBox({ onClose, onSuccess, user, eventId }) {
         setMessage(successMessage);
         stopStream();
         stopLoopRef.current = true;
-        onSuccess?.(res);
+        onSuccess?.(
+          res && typeof res === "object"
+            ? { ...res, image: dataUrl, success: res?.success ?? true }
+            : { success: true, image: dataUrl }
+        );
         setTimeout(() => onClose?.(), 1000);
       } else {
         const failureMessage =
@@ -263,14 +270,12 @@ export default function CameraBox({ onClose, onSuccess, user, eventId }) {
                 ? "text-green-600"
                 : status === "fail" || status === "error"
                 ? "text-red-600"
-                : "text-gray-600"
+                : "text-text-secondary"
             }`}
           >
             {message}
           </p>
-          <p className="text-xs text-gray-400 mt-2">
-            (Snapshot is used temporarily for verification and is not uploaded to ImgBB.)
-          </p>
+          <p className="text-xs text-text-muted mt-2">The photo is used for verification and saved in the attendance history.</p>
         </div>
       </div>
     </div>

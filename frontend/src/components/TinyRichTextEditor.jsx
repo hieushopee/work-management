@@ -171,7 +171,7 @@ const TinyRichTextEditor = forwardRef(function TinyRichTextEditor(
   return (
     <div className={`flex flex-col ${className}`}>
       {label && (
-        <label htmlFor={id} className="block text-xs font-bold text-gray-900 uppercase tracking-wide mb-2">
+        <label htmlFor={id} className="block text-xs font-bold text-text-main uppercase tracking-wide mb-2">
           {label}
         </label>
       )}

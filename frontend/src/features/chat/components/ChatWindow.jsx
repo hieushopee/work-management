@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
-import { Send, Circle, CircleUserIcon, FileText, Download, Paperclip, Smile, Bot } from 'lucide-react';
+import { Send, Circle, CircleUserRoundIcon, FileText, Download, Paperclip, Smile, Bot } from 'lucide-react';
 import { useSocket } from '../../../hooks/useSocket';
 import { formatHour } from '../../../utils/formatDate';
 import axios from '../../../libs/axios';
@@ -469,7 +469,7 @@ const ChatWindow = ({ selectedUser, currentUser, onNewMessage, isPartnerOnline, 
   if (loading) {
     return (
       <div className='bg-white rounded shadow h-full flex items-center justify-center'>
-        <div className='text-gray-500'>Loading chat history...</div>
+        <div className='text-text-secondary'>Loading chat history...</div>
       </div>
     );
   }
@@ -488,14 +488,14 @@ const ChatWindow = ({ selectedUser, currentUser, onNewMessage, isPartnerOnline, 
         <img
           src={avatar}
           alt={fallbackName}
-          className='w-9 h-9 rounded-full object-cover border border-gray-200'
+          className='w-9 h-9 rounded-full object-cover border-2 border-white'
         />
       );
     }
 
     return (
-      <div className='w-9 h-9 rounded-full bg-gray-200 flex items-center justify-center border border-gray-200'>
-        <CircleUserIcon className='w-5 h-5 text-gray-500' />
+      <div className='w-9 h-9 rounded-full bg-primary-light flex items-center justify-center'>
+        <CircleUserRoundIcon className='h-8 w-8 text-primary' />
       </div>
     );
   };
@@ -505,10 +505,10 @@ const ChatWindow = ({ selectedUser, currentUser, onNewMessage, isPartnerOnline, 
   return (
     <div className='h-full min-h-0 flex flex-col bg-white'>
       {/* Header */}
-      <div className='sticky top-0 z-10 bg-white border-b border-gray-200 h-20 px-5 flex items-center justify-between'>
+      <div className='sticky top-0 z-10 bg-white border-b border-border-light h-20 px-5 flex items-center justify-between'>
         <div className='flex items-center justify-between w-full'>
           <div
-            className={`flex items-center gap-3 ${isGroupChat ? 'cursor-pointer hover:bg-gray-50 rounded-lg p-2 -m-2' : ''}`}
+            className={`flex items-center gap-3 ${isGroupChat ? 'cursor-pointer hover:bg-bg-secondary rounded-lg p-2 -m-2' : ''}`}
             onClick={isGroupChat ? () => onShowMembers(selectedUser) : undefined}
           >
             <div className='relative'>
@@ -516,25 +516,25 @@ const ChatWindow = ({ selectedUser, currentUser, onNewMessage, isPartnerOnline, 
               {selectedUser?.id !== 'ai' && (
                 <Circle
                   className={`absolute -bottom-1 -right-1 w-3.5 h-3.5 ${
-                    isPartnerOnline ? 'text-green-500 fill-current' : 'text-gray-400'
+                    isPartnerOnline ? 'text-green-500 fill-current' : 'text-text-muted'
                   }`}
                 />
               )}
             </div>
             <div>
               <div className='flex gap-3 items-center'>
-                <h2 className={`text-xl font-semibold truncate max-w-[18rem] ${selectedUser?.id === 'ai' ? 'text-purple-500' : 'text-gray-900'}`}>
+                <h2 className={`text-xl font-semibold truncate max-w-[18rem] ${selectedUser?.id === 'ai' ? 'text-purple-500' : 'text-text-main'}`}>
                   {selectedUser?.name}
                 </h2>
-                {isTyping && <p className='text-sm text-gray-500 italic'>Typing...</p>}
+                {isTyping && <p className='text-sm text-text-secondary italic'>Typing...</p>}
               </div>
-                             <div className='flex items-center gap-2 text-sm text-gray-600'>
+                             <div className='flex items-center gap-2 text-sm text-text-secondary'>
                <span>{isPartnerOnline ? 'Online' : 'Offline'}</span>
              </div>
             </div>
           </div>
           {selectedUser?.role && (
-            <span className='bg-blue-100 text-blue-800 px-2 py-0.5 rounded text-xs uppercase'>
+            <span className='bg-primary-100 text-primary-700 px-2 py-0.5 rounded text-xs uppercase'>
               {selectedUser.role}
             </span>
           )}
@@ -544,7 +544,7 @@ const ChatWindow = ({ selectedUser, currentUser, onNewMessage, isPartnerOnline, 
       {/* Messages */}
       <div className='flex-1 min-h-0 overflow-y-auto px-5 py-6 space-y-5'>
         {messages.length === 0 ? (
-          <div className='text-center text-gray-500 mt-10'>
+          <div className='text-center text-text-secondary mt-10'>
             <p>No messages yet. Start the conversation!</p>
           </div>
         ) : (
@@ -566,14 +566,14 @@ const ChatWindow = ({ selectedUser, currentUser, onNewMessage, isPartnerOnline, 
                   {!isSelf && renderAvatar(partnerAvatar, selectedUser?.name, selectedUser?.id)}
 
                   <div className={`flex flex-col gap-1 text-sm ${maxBubbleWidthClass}`}>
-                    {!isSelf && isGroupChat && <div className="text-xs text-gray-500 mb-1">{message.senderName}</div>}
+                    {!isSelf && isGroupChat && <div className="text-xs text-text-secondary mb-1">{message.senderName}</div>}
                     <div className="relative group">
                       {showBubble && (
                         <div
                           className={`inline-block px-4 py-2 rounded-2xl leading-relaxed whitespace-pre-wrap break-words shadow-sm ${
                             isSelf
-                              ? 'bg-blue-500 text-white'
-                              : 'bg-gray-200 text-gray-900'
+                              ? 'bg-primary text-white'
+                              : 'bg-gray-200 text-text-main'
                           }`}
                         >
                           {message.message}
@@ -597,7 +597,7 @@ const ChatWindow = ({ selectedUser, currentUser, onNewMessage, isPartnerOnline, 
                                   key={key}
                                   src={source}
                                   alt={attachment.name || 'Shared image'}
-                                  className='rounded-2xl border border-gray-100 max-h-60 object-cover cursor-pointer'
+                                  className='rounded-2xl border border-border-light max-h-60 object-cover cursor-pointer'
                                   onClick={() => handleImageClick(source)}
                                 />
                               );
@@ -610,20 +610,20 @@ const ChatWindow = ({ selectedUser, currentUser, onNewMessage, isPartnerOnline, 
                                 download={attachment.name || 'attachment'}
                                 target='_blank'
                                 rel='noopener noreferrer'
-                                className='flex items-center justify-between gap-4 rounded-2xl border border-gray-200 bg-gray-50 px-4 py-3 hover:bg-gray-100 transition-colors'
+                                className='flex items-center justify-between gap-4 rounded-2xl border border-border-light bg-bg-secondary px-4 py-3 hover:bg-bg-hover transition-colors'
                               >
                                 <div className='flex items-center gap-3 min-w-0'>
-                                  <div className='flex h-10 w-10 items-center justify-center rounded-full bg-blue-500/10 text-blue-600'>
+                                  <div className='flex h-10 w-10 items-center justify-center rounded-full bg-primary/10 text-primary'>
                                     <FileText className='h-5 w-5' />
                                   </div>
                                   <div className='min-w-0'>
-                                    <p className='truncate text-sm font-medium text-gray-800'>{attachment.name || 'Attachment'}</p>
-                                    <p className='text-xs text-gray-500'>
+                                    <p className='truncate text-sm font-medium text-text-main'>{attachment.name || 'Attachment'}</p>
+                                    <p className='text-xs text-text-secondary'>
                                       {formatFileSize(attachment.size) || attachment.mimeType || 'Click to download'}
                                     </p>
                                   </div>
                                 </div>
-                                <Download className='h-4 w-4 shrink-0 text-gray-500' />
+                                <Download className='h-4 w-4 shrink-0 text-text-secondary' />
                               </a>
                             );
                           })}
@@ -635,7 +635,7 @@ const ChatWindow = ({ selectedUser, currentUser, onNewMessage, isPartnerOnline, 
                           <img
                             src={partnerAvatar}
                             alt='Read receipt'
-                            className='w-5 h-5 rounded-full border border-gray-200'
+                            className='w-5 h-5 rounded-full border border-border-light'
                           />
                         </div>
                       )}
@@ -660,7 +660,7 @@ const ChatWindow = ({ selectedUser, currentUser, onNewMessage, isPartnerOnline, 
       </div>
 
       {/* Message Input */}
-      <form onSubmit={handleSendMessage} className='px-5 py-4 flex gap-2 border-t border-gray-200 bg-white shrink-0'>
+      <form onSubmit={handleSendMessage} className='px-5 py-4 flex gap-2 border-t border-border-light bg-white shrink-0'>
         <input
           ref={fileInputRef}
           type='file'
@@ -671,7 +671,7 @@ const ChatWindow = ({ selectedUser, currentUser, onNewMessage, isPartnerOnline, 
         <div className='relative flex items-center gap-2 w-full'>
           <button
             onClick={toggleEmojiPicker}
-            className='p-2 rounded hover:bg-gray-100 text-gray-600'
+            className='p-2 rounded hover:bg-bg-hover text-text-secondary'
             aria-label='Emoji'
             type='button'
           >
@@ -680,7 +680,7 @@ const ChatWindow = ({ selectedUser, currentUser, onNewMessage, isPartnerOnline, 
 
           <button
             onClick={handleSelectFileClick}
-            className='p-2 rounded hover:bg-gray-100 text-gray-600'
+            className='p-2 rounded hover:bg-bg-hover text-text-secondary'
             aria-label='Attach file or image'
             type='button'
             disabled={uploadingAttachment}
@@ -698,7 +698,7 @@ const ChatWindow = ({ selectedUser, currentUser, onNewMessage, isPartnerOnline, 
                       e.preventDefault();
                       handleSelectEmoji(emoji);
                     }}
-                    className='p-1 text-lg hover:bg-gray-100 rounded'
+                    className='p-1 text-lg hover:bg-bg-hover rounded'
                     type='button'
                   >
                     {emoji}
@@ -713,14 +713,14 @@ const ChatWindow = ({ selectedUser, currentUser, onNewMessage, isPartnerOnline, 
             value={newMessage}
             onChange={handleTyping}
             placeholder={`Message ${selectedUser?.name || ''}...`}
-            className='flex-1 p-2 bg-gray-100 rounded focus:outline-none focus:ring-2 focus:ring-blue-500'
+            className='flex-1 p-2 bg-bg-hover rounded focus:outline-none focus:ring-2 focus:ring-blue-500'
             disabled={!socket}
           />
 
           <button
             type='submit'
             disabled={!newMessage.trim() || !socket || uploadingAttachment}
-            className='bg-blue-500 text-white px-4 py-2 rounded-full hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors'
+            className='bg-primary text-white px-4 py-2 rounded-full hover:bg-primary-hover disabled:opacity-50 disabled:cursor-not-allowed transition-colors'
           >
             {uploadingAttachment ? 'Uploading...' : <Send className='w-5 h-5' />}
           </button>

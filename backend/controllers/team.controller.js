@@ -24,7 +24,19 @@ export const validateTeam = [
 
 export async function getTeams(req, res) {
   try {
-    const teams = await Team.find()
+    const user = req.user;
+    let query = {};
+    
+    // Manager can only see teams in their department
+    if (user && user.role === 'manager') {
+      const userDepartment = user.department || '';
+      if (userDepartment) {
+        query.department = userDepartment;
+      }
+    }
+    // Admin can see all teams
+    
+    const teams = await Team.find(query)
       .populate('members', 'name email avatar')
       .populate('createdBy', 'name email')
       .sort({ createdAt: -1 });
@@ -52,6 +64,18 @@ export async function createTeam(req, res) {
     if (!user?.id) {
       console.log('❌ User authentication required');
       return res.status(400).json({ message: 'User authentication required' });
+    }
+
+    // Manager can only create teams in their department
+    if (user.role === 'manager') {
+      const userDepartment = user.department || '';
+      if (department && department.trim() !== userDepartment) {
+        return res.status(403).json({ message: 'You can only create teams in your own department' });
+      }
+      // If no department specified, use manager's department
+      if (!department || !department.trim()) {
+        req.body.department = userDepartment;
+      }
     }
 
     // Check if team name already exists
@@ -116,10 +140,23 @@ export async function updateTeam(req, res) {
       return res.status(404).json({ message: 'Team not found' });
     }
 
-    if (team.createdBy.toString() !== user.id) {
-      return res
-        .status(403)
-        .json({ message: 'You are not authorized to update this team' });
+    // Manager can only update teams in their department
+    if (user.role === 'manager') {
+      const userDepartment = user.department || '';
+      if (team.department !== userDepartment) {
+        return res.status(403).json({ message: 'You can only update teams in your own department' });
+      }
+      // Manager cannot change department
+      if (department && department.trim() !== userDepartment) {
+        return res.status(403).json({ message: 'You cannot change the team department' });
+      }
+    } else if (user.role !== 'admin') {
+      // For non-admin, non-manager users, check if they created the team
+      if (team.createdBy.toString() !== user.id) {
+        return res
+          .status(403)
+          .json({ message: 'You are not authorized to update this team' });
+      }
     }
 
     if (name && name.trim()) {
@@ -165,11 +202,21 @@ export async function deleteTeam(req, res) {
       return res.status(404).json({ message: 'Team not found' });
     }
 
-    if (team.createdBy.toString() !== user.id) {
-      return res
-        .status(403)
-        .json({ message: 'You are not authorized to delete this team' });
+    // Manager can only delete teams in their department
+    if (user.role === 'manager') {
+      const userDepartment = user.department || '';
+      if (team.department !== userDepartment) {
+        return res.status(403).json({ message: 'You can only delete teams in your own department' });
+      }
+    } else if (user.role !== 'admin') {
+      // For non-admin, non-manager users, check if they created the team
+      if (team.createdBy.toString() !== user.id) {
+        return res
+          .status(403)
+          .json({ message: 'You are not authorized to delete this team' });
+      }
     }
+    // Admin can delete any team
 
     // Remove team reference from all users
     await User.updateMany(

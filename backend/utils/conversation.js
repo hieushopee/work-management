@@ -25,7 +25,7 @@ export const ensureTeamConversation = async (team) => {
   const memberIds = toMemberIds(team.members);
   const creatorId = normalizeId(team.createdBy?._id || team.createdBy?.id || team.createdBy);
 
-  if (creatorId && !memberIds.includes(creatorId)) {
+  if (creatorId && memberIds.length === 0) {
     memberIds.push(creatorId);
   }
 
@@ -53,11 +53,28 @@ export const ensureTeamConversation = async (team) => {
   let conversation = await Conversation.findOne({ conversationId });
 
   if (conversation) {
-    conversation.groupName = team.name || conversation.groupName || '';
-    conversation.groupMembers = memberIds;
-    conversation.participants = participantObjectIds;
-    conversation.participantDetails = participantDetails;
-    await conversation.save();
+    // Reload to avoid version conflicts if document was modified elsewhere
+    try {
+      conversation.groupName = team.name || conversation.groupName || '';
+      conversation.groupMembers = memberIds;
+      conversation.participants = participantObjectIds;
+      conversation.participantDetails = participantDetails;
+      await conversation.save();
+    } catch (versionError) {
+      // If version conflict, reload and retry once
+      if (versionError.name === 'VersionError') {
+        conversation = await Conversation.findOne({ conversationId });
+        if (conversation) {
+          conversation.groupName = team.name || conversation.groupName || '';
+          conversation.groupMembers = memberIds;
+          conversation.participants = participantObjectIds;
+          conversation.participantDetails = participantDetails;
+          await conversation.save();
+        }
+      } else {
+        throw versionError;
+      }
+    }
     return conversation.toObject();
   }
 

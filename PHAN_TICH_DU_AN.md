@@ -2,8 +2,8 @@
 
 ## 🎯 TỔNG QUAN DỰ ÁN
 
-**Tên dự án:** Work Management System (Hệ thống Quản lý Công việc)  
-**Mô tả:** Hệ thống quản lý công việc, nhân viên, team, lịch làm việc với tích hợp AI chat và nhận diện khuôn mặt  
+**Tên dự án:** Enterprise Internal Work Management System (Hệ thống Quản lý Công việc Nội bộ Doanh nghiệp)  
+**Mô tả:** Hệ thống quản lý công việc nội bộ doanh nghiệp với tích hợp AI chat, nhận diện khuôn mặt, và các tính năng quản lý nhân viên, team, lịch làm việc  
 **Kiến trúc:** Full-stack (Backend Node.js + Frontend React)
 
 ---
@@ -50,17 +50,11 @@
   - Email chào mừng nhân viên mới
 
 #### **AI Integration**
-- **OpenRouter API** - AI chat service
-  - Model: `mistralai/mistral-7b-instruct-v0.1`
-  - Tạo tiêu đề cuộc hội thoại tự động
-  - Chat bằng tiếng Việt
-- **Ollama** (Local AI) - AI chạy local
-  - Model: `llama3.2:3b` (mặc định)
-  - API: `http://localhost:11434`
-  - Hỗ trợ nhiều model khác nhau
-
-#### **HTTP Client**
-- **Node-fetch v3.3.2** - HTTP client cho API calls
+- **OpenRouter** - Cổng AI chat thống nhất (OpenAI SDK)
+  - Default model: `openai/gpt-4o-mini`
+  - Configurable qua biến môi trường `OPENROUTER_MODEL`
+  - Hỗ trợ Claude 3 Haiku/Sonnet, GPT-3.5 Turbo, GPT-4o mini...
+  - Tạo tiêu đề hội thoại tự động, tối ưu tiếng Việt
 
 #### **Date Handling**
 - **Date-fns v4.1.0** - Thư viện xử lý ngày tháng
@@ -602,21 +596,12 @@
 ### **8. AI CHAT**
 
 #### **OpenRouter Integration:**
-- **Model:** `mistralai/mistral-7b-instruct-v0.1`
+- **Default model:** `openai/gpt-4o-mini` (có thể cấu hình)
 - **Features:**
-  - Chat bằng tiếng Việt
+  - Chat tiếng Việt với đa model (Claude, GPT, v.v.)
   - Tạo tiêu đề cuộc hội thoại tự động
-  - Lưu lịch sử conversation
-  - Nhiều conversations riêng biệt
-
-#### **Ollama Integration (Local):**
-- **Model:** `llama3.2:3b` (có thể thay đổi)
-- **API:** `http://localhost:11434`
-- **Features:**
-  - Chạy AI local (không cần internet)
-  - Hỗ trợ nhiều model khác nhau
-  - Customizable: temperature, max tokens
-  - Lấy danh sách models có sẵn
+  - Lưu lịch sử conversation + chỉnh sửa tiêu đề
+  - Tùy chỉnh temperature và max tokens từ frontend
 
 #### **Conversation Management:**
 - Tạo conversation mới
@@ -848,12 +833,11 @@ work_mgmt3/
 - `POST /api/forms/:formId/vote` - Vote
 
 ### **AI Chat**
-- `POST /api/ai/chat/openrouter` - Chat với OpenRouter
-- `POST /api/ai/chat/ollama` - Chat với Ollama
+- `POST /api/ai/chat` - Chat với OpenRouter (Claude/GPT theo cấu hình)
 - `GET /api/ai/conversations/:userId` - Lấy conversations
-- `GET /api/ai/conversations/:conversationId` - Lấy conversation
-- `DELETE /api/ai/conversations/:conversationId` - Xóa conversation
-- `GET /api/ai/ollama/models` - Lấy danh sách Ollama models
+- `GET /api/ai/conversation/:conversationId` - Lấy conversation chi tiết
+- `PATCH /api/ai/conversation/:conversationId` - Đổi tiêu đề conversation
+- `DELETE /api/ai/conversation/:conversationId` - Xóa conversation
 
 ### **Messages** (Socket.io)
 - `join` - Join room
@@ -912,6 +896,7 @@ IMAGEKIT_URL_ENDPOINT=https://ik.imagekit.io/your_id
 IMAGEKIT_FACE_FOLDER=/Face
 IMAGEKIT_MESSAGE_FOLDER=/Messages
 OPENROUTER_API_KEY=your_key
+OPENROUTER_MODEL=openai/gpt-4o-mini
 ```
 
 ---
@@ -930,20 +915,13 @@ OPENROUTER_API_KEY=your_key
 - React Router (client-side routing)
 - Environment variables
 
-### **Ollama (Optional):**
-- Local AI server
-- Port: 11434
-- Docker support
-
----
-
 ## 📝 GHI CHÚ
 
 ### **Tính năng đặc biệt:**
 1. **Multi-assignee Tasks:** Mỗi người có status riêng, aggregate status tự động tính
 2. **Face Recognition:** Điểm danh bằng nhận diện khuôn mặt
 3. **Real-time Chat:** Socket.io cho chat 1-1 và nhóm
-4. **AI Integration:** Hỗ trợ cả cloud (OpenRouter) và local (Ollama)
+4. **AI Integration:** Hỗ trợ OpenRouter đa model (Claude, GPT, v.v.)
 5. **Team Conversations:** Tự động tạo group chat khi tạo team
 6. **Shift Logging:** Theo dõi chấm công chi tiết (late, overtime, total time)
 
@@ -965,7 +943,6 @@ OPENROUTER_API_KEY=your_key
 - **Tailwind CSS:** https://tailwindcss.com/
 - **ImageKit:** https://imagekit.io/
 - **OpenRouter:** https://openrouter.ai/
-- **Ollama:** https://ollama.ai/
 - **Face-api.js:** https://github.com/vladmandic/face-api
 
 ---

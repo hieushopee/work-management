@@ -17,3 +17,7 @@ export const IMAGEKIT_PRIVATE_KEY = process.env.IMAGEKIT_PRIVATE_KEY;
 export const IMAGEKIT_URL_ENDPOINT = process.env.IMAGEKIT_URL_ENDPOINT;
 export const IMAGEKIT_FACE_FOLDER = process.env.IMAGEKIT_FACE_FOLDER || '/Face';
 export const IMAGEKIT_MESSAGE_FOLDER = process.env.IMAGEKIT_MESSAGE_FOLDER || '/Messages';
+export const IMAGEKIT_CHECKIN_FOLDER = process.env.IMAGEKIT_CHECKIN_FOLDER || '/CheckIn';
+export const IMAGEKIT_CHECKOUT_FOLDER = process.env.IMAGEKIT_CHECKOUT_FOLDER || '/CheckOut';
+export const OPENROUTER_API_KEY = process.env.OPENROUTER_API_KEY;
+export const OPENROUTER_MODEL = process.env.OPENROUTER_MODEL || 'openai/gpt-4o-mini';

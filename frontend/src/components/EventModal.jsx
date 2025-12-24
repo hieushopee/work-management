@@ -134,7 +134,8 @@ export default function EventModal({
 
       setPos({
         x: clamp(centeredX, 16, Math.max(16, vw - modalWidth - 16)),
-        y: clamp(centeredY - 140, 16, Math.max(16, vh - modalHeight - 16)),
+        // Offset a bit less so the modal sits lower on screen
+        y: clamp(centeredY - 40, 16, Math.max(16, vh - modalHeight - 16)),
       });
     };
 
@@ -307,7 +308,7 @@ export default function EventModal({
 
   if (shiftActionDisabled) {
     shiftButtonClass =
-      "inline-flex items-center justify-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors bg-gray-200 text-gray-500 cursor-not-allowed";
+      "inline-flex items-center justify-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors bg-gray-200 text-text-secondary cursor-not-allowed";
   }
 
   if (editing) {
@@ -323,7 +324,7 @@ export default function EventModal({
     shiftActionTitle = endButtonTitle;
     shiftActionHandler = shiftActionDisabled ? null : handleEndShift;
     shiftButtonClass = shiftActionDisabled
-      ? "inline-flex items-center justify-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors bg-gray-200 text-gray-500 cursor-not-allowed"
+      ? "inline-flex items-center justify-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors bg-gray-200 text-text-secondary cursor-not-allowed"
       : "inline-flex items-center justify-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors bg-emerald-600 text-white hover:bg-emerald-700";
   } else if (hasEndedShift) {
     shiftActionLabel = "Ended";
@@ -331,7 +332,7 @@ export default function EventModal({
     shiftActionTitle = "Shift already ended";
     shiftActionHandler = null;
     shiftButtonClass =
-      "inline-flex items-center justify-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors bg-gray-200 text-gray-500 cursor-not-allowed";
+      "inline-flex items-center justify-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors bg-gray-200 text-text-secondary cursor-not-allowed";
   }
 
   const hasFaceUrl = !!currentUser?.faceUrl?.trim();
@@ -357,7 +358,7 @@ export default function EventModal({
       return {
         title: "Attendance Unavailable",
         description: "Save the event first to enable attendance capture.",
-        tone: "text-gray-500 bg-gray-50",
+        tone: "text-text-secondary bg-bg-secondary",
         icon: "info",
       }
     }
@@ -380,7 +381,7 @@ export default function EventModal({
     return {
       title: "Attendance Pending",
       description: "Attendance is not yet available.",
-      tone: "text-gray-500 bg-gray-50",
+      tone: "text-text-secondary bg-bg-secondary",
       icon: "info",
     }
   })();
@@ -390,18 +391,18 @@ export default function EventModal({
       <div className="fixed inset-0 z-40 bg-black/20" onClick={onClose} aria-hidden="true" />
       <div
           ref={modalRef}
-          className="fixed z-50 w-[980px] max-w-[95vw] max-h-[85vh] flex flex-col rounded-lg bg-white shadow-xl border border-gray-200"
+          className="fixed z-50 w-[980px] max-w-[95vw] max-h-[85vh] flex flex-col rounded-lg bg-white shadow-xl border border-border-light"
         style={{ left: pos.x, top: pos.y }}
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header - Google Calendar style */}
         <div
-          className="flex items-center justify-between px-6 py-4 border-b border-gray-200 cursor-move select-none"
+          className="flex items-center justify-between px-6 py-4 border-b border-border-light cursor-move select-none"
           onMouseDown={beginDrag}
         >
           <div className="flex items-center gap-3">
             <div className="w-3 h-3 rounded-full bg-blue-500"></div>
-            <h2 className="text-lg font-medium text-gray-900">
+            <h2 className="text-lg font-medium text-text-main">
               {event?.id ? "Event details" : "Create Event"}
             </h2>
           </div>
@@ -412,7 +413,7 @@ export default function EventModal({
                 {canOpenCamera && !attendanceSuccess && (
                   <button
                     onClick={() => setShowCamera(true)}
-                    className="w-8 h-8 flex items-center justify-center rounded-full text-gray-600 hover:bg-gray-100 transition-colors"
+                    className="w-8 h-8 flex items-center justify-center rounded-full text-text-secondary hover:bg-bg-hover transition-colors"
                     title="Mark attendance"
                   >
                     <User className="w-4 h-4" />
@@ -425,14 +426,14 @@ export default function EventModal({
                 )}
                 <button
                   onClick={() => setEditing(!editing)}
-                  className="w-8 h-8 flex items-center justify-center rounded-full text-gray-600 hover:bg-gray-100 transition-colors"
+                  className="w-8 h-8 flex items-center justify-center rounded-full text-text-secondary hover:bg-bg-hover transition-colors"
                   title={editing ? "View mode" : "Edit mode"}
                 >
                   <SquarePenIcon className="w-4 h-4" />
                 </button>
                 <button
                   onClick={() => onDelete?.(event.id)}
-                  className="w-8 h-8 flex items-center justify-center rounded-full text-gray-600 hover:bg-red-100 hover:text-red-600 transition-colors"
+                  className="w-8 h-8 flex items-center justify-center rounded-full text-text-secondary hover:bg-red-100 hover:text-red-600 transition-colors"
                   title="Delete event"
                 >
                   <Trash2Icon className="w-4 h-4" />
@@ -441,10 +442,10 @@ export default function EventModal({
             )}
             <button
               onClick={onClose}
-              className="w-8 h-8 flex items-center justify-center rounded-full text-gray-600 hover:bg-gray-100 transition-colors"
+              className="w-8 h-8 flex items-center justify-center rounded-full text-text-secondary hover:bg-bg-hover transition-colors"
               title="Close"
             >
-              <X className="w-4 h-4 text-gray-600" />
+              <X className="w-4 h-4 text-text-secondary" />
             </button>
           </div>
         </div>
@@ -453,13 +454,13 @@ export default function EventModal({
         <div className="flex-1 overflow-y-auto p-6">
           <div className="space-y-6 pb-6">
             <div>
-              <label className="block text-xs font-bold text-gray-900 uppercase tracking-wide mb-2">
+              <label className="block text-xs font-bold text-text-main uppercase tracking-wide mb-2">
                 Event Title
               </label>
               <input
                 type="text"
-                className={`w-full text-lg text-gray-900 border border-gray-300 rounded-lg px-3 py-2 bg-white shadow-sm placeholder:text-gray-400 placeholder:text-base placeholder:font-normal ${
-                  !editing ? 'cursor-default bg-gray-50' : 'focus:outline-none focus:ring-2 focus:ring-blue-500'
+                className={`w-full text-lg text-text-main border border-border-light rounded-lg px-3 py-2 bg-white shadow-sm placeholder:text-text-muted placeholder:text-base placeholder:font-normal ${
+                  !editing ? 'cursor-default bg-bg-secondary' : 'focus:outline-none focus:ring-2 focus:ring-blue-500'
                 }`}
                 value={title}
                 onChange={(e) => setTitle(e.target.value)}
@@ -470,15 +471,15 @@ export default function EventModal({
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <label className="block text-xs font-bold text-gray-900 uppercase tracking-wide mb-2">
+                <label className="block text-xs font-bold text-text-main uppercase tracking-wide mb-2">
                   Date
                 </label>
                 <div className="relative">
-                    <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                    <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-text-muted" />
                     <input
                       type="date"
-                      className={`w-full pl-10 text-sm text-gray-700 border border-gray-300 rounded-lg px-3 py-2 bg-white shadow-sm ${
-                        !editing ? 'cursor-default bg-gray-50' : 'focus:outline-none focus:ring-2 focus:ring-blue-500'
+                      className={`w-full pl-10 text-sm text-text-main border border-border-light rounded-lg px-3 py-2 bg-white shadow-sm ${
+                        !editing ? 'cursor-default bg-bg-secondary' : 'focus:outline-none focus:ring-2 focus:ring-blue-500'
                       }`}
                       value={format(start, "yyyy-MM-dd")}
                       onChange={(e) => {
@@ -492,16 +493,16 @@ export default function EventModal({
               </div>
 
               <div>
-                <label className="block text-xs font-bold text-gray-900 uppercase tracking-wide mb-2">
+                <label className="block text-xs font-bold text-text-main uppercase tracking-wide mb-2">
                   Time
                 </label>
                 <div className="flex flex-wrap items-center gap-4">
                   <div className="flex items-center gap-2">
-                    <span className="text-xs text-gray-500 uppercase tracking-wide">Start</span>
+                    <span className="text-xs text-text-secondary uppercase tracking-wide">Start</span>
                     <input
                       type="time"
-                      className={`text-sm text-gray-700 border border-gray-300 rounded-lg px-3 py-2 bg-white shadow-sm ${
-                        !editing ? 'cursor-default bg-gray-50' : 'focus:outline-none focus:ring-2 focus:ring-blue-500'
+                      className={`text-sm text-text-main border border-border-light rounded-lg px-3 py-2 bg-white shadow-sm ${
+                        !editing ? 'cursor-default bg-bg-secondary' : 'focus:outline-none focus:ring-2 focus:ring-blue-500'
                       }`}
                       value={format(start, "HH:mm")}
                       onChange={(e) => {
@@ -514,11 +515,11 @@ export default function EventModal({
                     />
                   </div>
                   <div className="flex items-center gap-2">
-                    <span className="text-xs text-gray-500 uppercase tracking-wide">End</span>
+                    <span className="text-xs text-text-secondary uppercase tracking-wide">End</span>
                     <input
                       type="time"
-                      className={`text-sm text-gray-700 border border-gray-300 rounded-lg px-3 py-2 bg-white shadow-sm ${
-                        !editing ? 'cursor-default bg-gray-50' : 'focus:outline-none focus:ring-2 focus:ring-blue-500'
+                      className={`text-sm text-text-main border border-border-light rounded-lg px-3 py-2 bg-white shadow-sm ${
+                        !editing ? 'cursor-default bg-bg-secondary' : 'focus:outline-none focus:ring-2 focus:ring-blue-500'
                       }`}
                       value={format(end, "HH:mm")}
                       onChange={(e) => {
@@ -534,13 +535,13 @@ export default function EventModal({
               </div>
             </div>
 
-            <div className="p-4 border border-gray-200 rounded-xl bg-white shadow-sm space-y-4">
+            <div className="p-4 border border-border-light rounded-xl bg-white shadow-sm space-y-4">
               <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
                 <div>
-                  <h3 className="text-xs font-bold text-gray-900 uppercase tracking-wide">
+                  <h3 className="text-xs font-bold text-text-main uppercase tracking-wide">
                     Attendance
                   </h3>
-                  <p className="text-sm text-gray-500">{attendanceStatus.description}</p>
+                  <p className="text-sm text-text-secondary">{attendanceStatus.description}</p>
                 </div>
                 <div className={`inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-semibold ${attendanceStatus.tone}`}>
                   {attendanceStatus.icon === 'check' && <CheckCircle className="w-4 h-4" />}
@@ -553,7 +554,7 @@ export default function EventModal({
               </div>
 
               <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-                <div className="text-sm text-gray-500">
+                <div className="text-sm text-text-secondary">
                   Attendance is captured via camera so that presence is verified accurately.
                 </div>
                 <button
@@ -562,7 +563,7 @@ export default function EventModal({
                   disabled={!canOpenCamera || attendanceSuccess}
                   className={`inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
                     !canOpenCamera || attendanceSuccess
-                      ? 'bg-gray-200 text-gray-500 cursor-not-allowed'
+                      ? 'bg-gray-200 text-text-secondary cursor-not-allowed'
                       : 'bg-blue-600 text-white hover:bg-blue-700'
                   }`}
                 >
@@ -575,7 +576,7 @@ export default function EventModal({
             <RichTextEditor
               id="taskDescription"
               label="Task Details"
-              labelClassName="text-xs font-bold text-gray-900 uppercase tracking-wide"
+              labelClassName="text-xs font-bold text-text-main uppercase tracking-wide"
               value={taskDescription}
               onChange={setTaskDescription}
               placeholder="Outline the tasks that need to be completed..."
@@ -587,7 +588,7 @@ export default function EventModal({
             <RichTextEditor
               id="reportNotes"
               label="Report Notes"
-              labelClassName="text-xs font-bold text-gray-900 uppercase tracking-wide"
+              labelClassName="text-xs font-bold text-text-main uppercase tracking-wide"
               value={reportNotes}
               onChange={editing ? setReportNotes : () => {}}
               placeholder="Add progress notes, blockers, or key updates..."
@@ -598,7 +599,7 @@ export default function EventModal({
         </div>
 
         {/* Actions */}
-        <div className="px-6 py-4 border-t border-gray-200 bg-white">
+        <div className="px-6 py-4 border-t border-border-light bg-white">
           <div className="flex flex-col gap-2">
             {shiftNotice && (
               <div
@@ -622,7 +623,7 @@ export default function EventModal({
                   <button
                     type="button"
                     onClick={() => setEditing(false)}
-                    className="px-4 py-2 rounded-lg text-sm font-medium border border-gray-300 text-gray-700 hover:bg-gray-50 transition-colors"
+                    className="px-4 py-2 rounded-lg text-sm font-medium border border-border-light text-text-main hover:bg-bg-secondary transition-colors"
                   >
                     Cancel
                   </button>

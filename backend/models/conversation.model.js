@@ -79,6 +79,11 @@ const conversationSchema = new Schema(
       default: [],
     },
     lastMessageAt: { type: Date, default: Date.now },
+    workspace: {
+      type: Schema.Types.ObjectId,
+      ref: 'Workspace',
+      default: null,
+    },
   },
   {
     timestamps: true,
@@ -89,6 +94,11 @@ const conversationSchema = new Schema(
         ret.id = ret._id.toString();
         delete ret._id;
         delete ret.__v;
+
+        // Convert workspace ObjectId to string if it exists
+        if (ret.workspace != null) {
+          ret.workspace = ret.workspace.toString();
+        }
 
         if (Array.isArray(ret.participants)) {
           ret.participants = ret.participants.map((value) =>

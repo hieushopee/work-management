@@ -14,6 +14,7 @@ const CalendarPage = () => {
   const [modalEvent, setModalEvent] = useState(null);
   const [modalPos, setModalPos] = useState({ x: 100, y: 100 });
   const [monthlyEvents, setMonthlyEvents] = useState([]);
+  const [departments, setDepartments] = useState([]);
   const [viewMode, setViewMode] = useState("week");
 
   const fetchMonthlyEvents = useCallback((date) => {
@@ -65,7 +66,7 @@ const CalendarPage = () => {
             user = { ...user, ...empRes.data.employee };
           }
         } catch {
-          console.warn("⚠️ Không thể lấy thêm thông tin faceUrl từ employees");
+          console.warn("⚠️ Unable to fetch additional faceUrl info from employees");
         }
       }
 
@@ -99,6 +100,19 @@ const CalendarPage = () => {
       }
     };
     loadEmployees();
+  }, []);
+
+  // Get departments (for sidebar color tags)
+  useEffect(() => {
+    const loadDepartments = async () => {
+      try {
+        const { data } = await axios.get("/departments");
+        setDepartments(Array.isArray(data) ? data : []);
+      } catch {
+        setDepartments([]);
+      }
+    };
+    loadDepartments();
   }, []);
 
   // Get events by week (1 person) or day (multiple people)
@@ -294,37 +308,46 @@ const CalendarPage = () => {
   };
 
   return (
-    <div className="flex h-screen overflow-hidden gap-4">
-      <SidebarCalendar
-        selectedDate={selectedDate}
-        setSelectedDate={setSelectedDate}
-        employees={employees}
-        selectedMembers={selectedMembers}
-        setSelectedMembers={setSelectedMembers}
-        isLoading={isLoading}
-        currentUser={currentUser}
-        onCreateEvent={openCreateEventModal}
-        events={monthlyEvents}
-        onMonthChange={fetchMonthlyEvents}
-        isMonthView={viewMode === "month"}
-        onRequestViewMode={setViewMode}
-      />
+    <div className="h-screen overflow-hidden bg-slate-50 px-5 py-5">
+      <div className="h-full flex gap-5 items-start">
+        <div className="w-[320px] shrink-0 px-3 pt-3 ml-4 mt-2">
+          <div className="h-full rounded-2xl bg-white shadow-sm border border-border-light overflow-hidden p-3">
+            <SidebarCalendar
+              selectedDate={selectedDate}
+              setSelectedDate={setSelectedDate}
+              employees={employees}
+              selectedMembers={selectedMembers}
+              setSelectedMembers={setSelectedMembers}
+              isLoading={isLoading}
+              currentUser={currentUser}
+              onCreateEvent={openCreateEventModal}
+              events={monthlyEvents}
+              onMonthChange={fetchMonthlyEvents}
+              isMonthView={viewMode === "month"}
+              onRequestViewMode={setViewMode}
+              departments={departments}
+            />
+          </div>
+        </div>
 
-      <WeeklySchedule
-        calendarRef={calendarRef}
-        events={events}
-        selectedMembers={selectedMembers}
-        selectedDate={selectedDate}
-        employees={employees}
-        currentUser={currentUser}
-        onCreateEvent={createEvent}
-        onEditEvent={updateEvent}
-        onDeleteEvent={deleteEvent}
-        handleSelectDate={setSelectedDate}
-        viewMode={viewMode}
-        onViewModeChange={setViewMode}
-        refreshEvents={fetchEvents}
-      />
+        <div className="flex-1 rounded-2xl bg-white shadow-sm border border-border-light overflow-hidden">
+          <WeeklySchedule
+            calendarRef={calendarRef}
+            events={events}
+            selectedMembers={selectedMembers}
+            selectedDate={selectedDate}
+            employees={employees}
+            currentUser={currentUser}
+            onCreateEvent={createEvent}
+            onEditEvent={updateEvent}
+            onDeleteEvent={deleteEvent}
+            handleSelectDate={setSelectedDate}
+            viewMode={viewMode}
+            onViewModeChange={setViewMode}
+            refreshEvents={fetchEvents}
+          />
+        </div>
+      </div>
 
       {modalEvent && (
         <EventModal

@@ -80,7 +80,7 @@ const MultiSelectDropdown = ({
       <div className="relative">
         <div
           onClick={handleToggleDropdown}
-          className="w-full min-h-[48px] px-3 py-2 border-2 border-gray-200 rounded-xl bg-blue-50/30 cursor-pointer hover:border-blue-300 transition-all duration-200 focus:outline-none focus:ring-4 focus:ring-blue-500/20"
+          className="w-full min-h-[48px] px-3 py-2 border-2 border-border-light rounded-xl bg-blue-50/30 cursor-pointer hover:border-blue-300 transition-all duration-200 focus:outline-none focus:ring-4 focus:ring-blue-500/20"
         >
           <div className="flex items-center justify-between">
             <div className="flex items-center flex-wrap gap-2 flex-1">
@@ -115,13 +115,13 @@ const MultiSelectDropdown = ({
                   
                   {/* More Items Indicator */}
                   {remainingCount > 0 && (
-                    <span className="px-2 py-1 bg-gray-100 text-gray-600 rounded-full text-sm font-medium">
+                    <span className="px-2 py-1 bg-bg-hover text-text-secondary rounded-full text-sm font-medium">
                       +{remainingCount}
                     </span>
                   )}
                 </div>
               ) : (
-                <span className="text-gray-500">{placeholder}</span>
+                <span className="text-text-secondary">{placeholder}</span>
               )}
             </div>
 
@@ -137,7 +137,7 @@ const MultiSelectDropdown = ({
                   className="p-1 hover:bg-gray-200 rounded-full transition-colors"
                   title="Clear all"
                 >
-                  <X className="w-4 h-4 text-gray-500" />
+                  <X className="w-4 h-4 text-text-secondary" />
                 </button>
               )}
               <button
@@ -146,9 +146,9 @@ const MultiSelectDropdown = ({
                 title={isOpen ? "Close" : "Open"}
               >
                 {isOpen ? (
-                  <ChevronUp className="w-4 h-4 text-gray-500" />
+                  <ChevronUp className="w-4 h-4 text-text-secondary" />
                 ) : (
-                  <ChevronDown className="w-4 h-4 text-gray-500" />
+                  <ChevronDown className="w-4 h-4 text-text-secondary" />
                 )}
               </button>
             </div>
@@ -157,16 +157,16 @@ const MultiSelectDropdown = ({
 
         {/* Dropdown Menu */}
         {isOpen && (
-          <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-200 rounded-xl shadow-lg z-50 max-h-80 overflow-hidden">
+          <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-border-light rounded-xl shadow-lg z-50 max-h-80 overflow-hidden">
             {/* Header */}
-            <div className="px-4 py-3 border-b border-gray-100 bg-gray-50">
+            <div className="px-4 py-3 border-b border-border-light bg-bg-secondary">
               <div className="flex items-center justify-between">
-                <h3 className="text-sm font-semibold text-gray-800">Choose Teams</h3>
+                <h3 className="text-sm font-semibold text-text-main">Choose Teams</h3>
                 <div className="flex items-center gap-2">
                   <button
                     type="button"
                     onClick={handleClearAll}
-                    className="text-sm text-gray-600 hover:text-gray-800 transition-colors"
+                    className="text-sm text-text-secondary hover:text-text-main transition-colors"
                   >
                     Clear all
                   </button>
@@ -182,13 +182,13 @@ const MultiSelectDropdown = ({
             </div>
 
             {/* Search Input */}
-            <div className="px-4 py-2 border-b border-gray-100">
+            <div className="px-4 py-2 border-b border-border-light">
               <input
                 type="text"
                 placeholder="Search teams..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full px-3 py-2 text-sm border border-border-light rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                 onClick={(e) => e.stopPropagation()}
               />
             </div>
@@ -201,21 +201,21 @@ const MultiSelectDropdown = ({
                   return (
                     <label
                       key={option.id || option._id || option.name}
-                      className="flex items-center px-4 py-3 hover:bg-gray-50 cursor-pointer transition-colors"
+                      className="flex items-center px-4 py-3 hover:bg-bg-secondary cursor-pointer transition-colors"
                     >
                       <input
                         type="checkbox"
                         checked={isSelected}
                         onChange={() => handleToggleOption(option)}
-                        className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 focus:ring-2"
+                        className="w-4 h-4 text-blue-600 bg-bg-hover border-border-light rounded focus:ring-blue-500 focus:ring-2"
                         onClick={(e) => e.stopPropagation()}
                       />
-                      <span className="ml-3 text-sm text-gray-700">{option.name}</span>
+                      <span className="ml-3 text-sm text-text-main">{option.name}</span>
                     </label>
                   );
                 })
               ) : (
-                <div className="px-4 py-8 text-center text-gray-500 text-sm">
+                <div className="px-4 py-8 text-center text-text-secondary text-sm">
                   {searchTerm ? 'No teams found matching your search.' : 'No teams available.'}
                 </div>
               )}

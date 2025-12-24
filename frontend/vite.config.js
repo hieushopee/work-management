@@ -11,6 +11,16 @@ export default defineConfig({
         target: 'http://localhost:5000',
         changeOrigin: true,
         secure: false,
+        // Forward cookies properly
+        configure: (proxy, _options) => {
+          proxy.on('proxyRes', (proxyRes, req, res) => {
+            // Log cookie headers for debugging
+            const setCookieHeaders = proxyRes.headers['set-cookie'];
+            if (setCookieHeaders) {
+              console.log('🍪 Proxy forwarding cookies:', setCookieHeaders);
+            }
+          });
+        },
       },
       }
     },

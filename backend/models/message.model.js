@@ -46,6 +46,11 @@ const messageSchema = new Schema(
       type: [{ type: Schema.Types.ObjectId, ref: 'User' }],
       default: [],
     },
+    workspace: {
+      type: Schema.Types.ObjectId,
+      ref: 'Workspace',
+      default: null,
+    },
     read: {
       type: Boolean,
       default: false,
@@ -70,6 +75,9 @@ const messageSchema = new Schema(
         if (ret.receiverId) ret.receiverId = ret.receiverId.toString();
         if (Array.isArray(ret.participants)) {
           ret.participants = ret.participants.map((value) => (value ? value.toString() : value));
+        }
+        if (ret.workspace != null) {
+          ret.workspace = ret.workspace.toString();
         }
         if (ret.timestamp instanceof Date) {
           ret.timestamp = ret.timestamp.toISOString();

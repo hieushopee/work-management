@@ -29,10 +29,10 @@ export const useTaskStore = create((set) => ({
             toast.error(error.response.data?.error || "An error occurred");
         }
     },
-    createTask: async (id, taskData) => {
+    createTask: async (taskData) => {
         set({ actionLoading: true });
         try {
-            const res =await axios.post(`/tasks/create/${id}`, taskData);
+            const res = await axios.post(`/tasks/create`, taskData);
             set((state) => {
                 const existingTasks = Array.isArray(state.tasks) ? state.tasks : [];
                 const newTask = res.data?.task;
@@ -68,8 +68,9 @@ export const useTaskStore = create((set) => ({
             toast.error(error.response.data?.error || "An error occurred");
         }
     },
-    changeTaskStatus: async (id, status) => {
-        set({ actionLoading: true });
+    changeTaskStatus: async (id, status, options = {}) => {
+        const silent = Boolean(options.silent);
+        if (!silent) set({ actionLoading: true });
         try {
             const res = await axios.post(`/tasks/${id}/status`, { status });
             const updatedTask = res.data?.task;
@@ -84,13 +85,15 @@ export const useTaskStore = create((set) => ({
                         return { ...task, status };
                     })
                     : state.tasks,
-                actionLoading: false
+                actionLoading: silent ? state.actionLoading : false
             }));
 
-            toast.success("Task status updated successfully");
+            if (!silent) {
+                toast.success("Task status updated successfully");
+            }
         } catch (error) {
-            set({ actionLoading: false });
-            toast.error(error.response.data?.error || "An error occurred");
+            if (!silent) set({ actionLoading: false });
+            toast.error(error.response?.data?.error || "An error occurred");
         }
     },
     togglePinTask: async (id) => {
@@ -125,6 +128,127 @@ export const useTaskStore = create((set) => ({
         } catch (error) {
             set({ actionLoading: false });
             toast.error(error.response.data?.error || "An error occurred");
+        }
+    },
+    addTaskComment: async (id, message) => {
+        const payload = { message };
+        try {
+            const res = await axios.post(`/tasks/${id}/comments`, payload);
+            const updatedTask = res.data?.task;
+            if (updatedTask) {
+                set((state) => ({
+                    tasks: Array.isArray(state.tasks)
+                        ? state.tasks.map((task) => (task.id === id ? updatedTask : task))
+                        : state.tasks,
+                }));
+            }
+            return updatedTask;
+        } catch (error) {
+            toast.error(error.response?.data?.error || "Unable to add comment");
+            throw error;
+        }
+    },
+    addChecklistItem: async (id, title) => {
+        const payload = { title };
+        try {
+            const res = await axios.post(`/tasks/${id}/checklist`, payload);
+            const updatedTask = res.data?.task;
+            if (updatedTask) {
+                set((state) => ({
+                    tasks: Array.isArray(state.tasks)
+                        ? state.tasks.map((task) => (task.id === id ? updatedTask : task))
+                        : state.tasks,
+                }));
+            }
+            return updatedTask;
+        } catch (error) {
+            toast.error(error.response?.data?.error || "Unable to add checklist item");
+            throw error;
+        }
+    },
+    toggleChecklistItem: async (taskId, itemId, completed) => {
+        try {
+            const res = await axios.patch(`/tasks/${taskId}/checklist/${itemId}`, { completed });
+            const updatedTask = res.data?.task;
+            if (updatedTask) {
+                set((state) => ({
+                    tasks: Array.isArray(state.tasks)
+                        ? state.tasks.map((task) => (task.id === taskId ? updatedTask : task))
+                        : state.tasks,
+                }));
+            }
+            return updatedTask;
+        } catch (error) {
+            toast.error(error.response?.data?.error || "Unable to update checklist item");
+            throw error;
+        }
+    },
+    updateTaskComment: async (taskId, commentId, message) => {
+        try {
+            const res = await axios.patch(`/tasks/${taskId}/comments/${commentId}`, { message });
+            const updatedTask = res.data?.task;
+            if (updatedTask) {
+                set((state) => ({
+                    tasks: Array.isArray(state.tasks)
+                        ? state.tasks.map((task) => (task.id === taskId ? updatedTask : task))
+                        : state.tasks,
+                }));
+            }
+            return updatedTask;
+        } catch (error) {
+            toast.error(error.response?.data?.error || "Unable to edit comment");
+            throw error;
+        }
+    },
+    deleteTaskComment: async (taskId, commentId) => {
+        try {
+            const res = await axios.delete(`/tasks/${taskId}/comments/${commentId}`);
+            const updatedTask = res.data?.task;
+            if (updatedTask) {
+                set((state) => ({
+                    tasks: Array.isArray(state.tasks)
+                        ? state.tasks.map((task) => (task.id === taskId ? updatedTask : task))
+                        : state.tasks,
+                }));
+            }
+            return updatedTask;
+        } catch (error) {
+            toast.error(error.response?.data?.error || "Unable to delete comment");
+            throw error;
+        }
+    },
+    updateChecklistDetails: async (taskId, itemId, updates = {}) => {
+        try {
+            const res = await axios.patch(`/tasks/${taskId}/checklist/${itemId}`, updates);
+            const updatedTask = res.data?.task;
+            if (updatedTask) {
+                set((state) => ({
+                    tasks: Array.isArray(state.tasks)
+                        ? state.tasks.map((task) => (task.id === taskId ? updatedTask : task))
+                        : state.tasks,
+                }));
+            }
+            return updatedTask;
+        } catch (error) {
+            toast.error(error.response?.data?.error || "Unable to edit checklist item");
+            throw error;
+        }
+    },
+    deleteChecklistItem: async (taskId, itemId) => {
+        try {
+            const res = await axios.delete(`/tasks/${taskId}/checklist/${itemId}`);
+            const updatedTask = res.data?.task;
+            if (updatedTask) {
+                set((state) => ({
+                    tasks: Array.isArray(state.tasks)
+                        ? state.tasks.map((task) => (task.id === taskId ? updatedTask : task))
+                        : state.tasks,
+                }));
+            }
+            return updatedTask;
+        } catch (error) {
+            toast.error(error.response?.data?.error || "Unable to delete checklist item");
+            throw error;
         }
     }
 }))

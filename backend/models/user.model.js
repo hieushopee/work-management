@@ -15,9 +15,35 @@ const userSchema = new Schema(
       type: String,
       default: '',
     },
+    password: {
+      type: String,
+      default: null,
+    },
+    passwordChangedAt: {
+      type: Date,
+      default: null,
+    },
+    resetPasswordCode: {
+      type: String,
+      default: null,
+    },
+    resetPasswordCodeExpires: {
+      type: Date,
+      default: null,
+    },
+    isLocked: {
+      type: Boolean,
+      default: false,
+    },
+    workspace: {
+      type: Schema.Types.ObjectId,
+      ref: 'Workspace',
+      default: null,
+    },
     role: {
       type: String,
-      default: 'employee',
+      enum: ['admin', 'manager', 'staff'],
+      default: 'staff',
     },
     isVerified: {
       type: Boolean,
@@ -64,6 +90,10 @@ const userSchema = new Schema(
           ret.id = ret._id.toString();
         } else if (ret.id == null) {
           ret.id = undefined;
+        }
+        // Convert workspace ObjectId to string if it exists
+        if (ret.workspace != null) {
+          ret.workspace = ret.workspace.toString();
         }
         delete ret._id;
         delete ret.__v;
